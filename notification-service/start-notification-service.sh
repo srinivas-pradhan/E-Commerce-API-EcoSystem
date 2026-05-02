@@ -2,4 +2,7 @@
 
 source .venv/bin/activate
 
-fastapi run --port 8083
+fastapi dev --port 8083
+
+# PROD Environment
+#fastapi run --port 8083
