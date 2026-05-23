@@ -1,12 +1,14 @@
 from fastapi import FastAPI
+from .config import settings
+
 
 app = FastAPI(title="User Auth Service")
 
 
 @app.get("/")
 def read_root():
+    print(settings.auth_key)
     return {"Hello": "World"}
-
 
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: str | None = None):
