@@ -1,14 +1,20 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from auth import require_permissions
+from config import settings
 from routers.schemas import (
-    BlueprintResponse,
     MfaChallengeRequest,
     MfaEnrollmentRequest,
     RegistrationCompleteRequest,
     SelfRegistrationRequest,
+)
+from services.auth0.client import (
+    Auth0AuthenticationClient,
+    Auth0ClientError,
+    Auth0ManagementClient,
+    raise_http_error,
 )
 
 router = APIRouter(prefix="/self-service", tags=["self-service"])
@@ -22,48 +28,41 @@ ChallengeOwnMfa = Depends(require_permissions("challenge:own_mfa"))
 DeleteOwnMfa = Depends(require_permissions("delete:own_mfa"))
 
 
-def planned(operation: str, auth0_endpoint: str, notes: list[str]) -> BlueprintResponse:
-    return BlueprintResponse(
-        operation=operation,
-        auth0_endpoint=auth0_endpoint,
-        notes=notes,
-    )
-
-
-@router.post("/registration", response_model=BlueprintResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/registration", status_code=status.HTTP_201_CREATED)
 async def start_registration(
     payload: SelfRegistrationRequest,
     claims: dict[str, Any] = CreateRegistration,
 ):
-    return planned(
-        operation="start self-service registration",
-        auth0_endpoint="POST /api/v2/users",
-        notes=[
-            "Create an Auth0 database-connection user.",
-            "Requires a trusted pre-registration or service token.",
-            "Store allowed profile fields in user_metadata.",
-            "Trigger verification email after user creation.",
-        ],
-    )
+    auth0_user = {
+        "connection": payload.connection or settings.auth0_connection,
+        "email": str(payload.email),
+        "password": payload.password,
+        "email_verified": False,
+        "verify_email": True,
+        "user_metadata": payload.user_metadata,
+    }
+    if payload.given_name:
+        auth0_user["given_name"] = payload.given_name
+    if payload.family_name:
+        auth0_user["family_name"] = payload.family_name
+
+    try:
+        return await Auth0ManagementClient().create_user(auth0_user)
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
 @router.post(
     "/registration/complete",
-    response_model=BlueprintResponse,
-    status_code=status.HTTP_202_ACCEPTED,
 )
 async def complete_registration(
     payload: RegistrationCompleteRequest,
     claims: dict[str, Any] = CompleteRegistration,
 ):
-    return planned(
-        operation="complete self-service registration",
-        auth0_endpoint="PATCH /api/v2/users/{id}",
-        notes=[
-            "Validate any app-specific registration proof before marking completion.",
-            "Update app_metadata.registration_completed when the flow is satisfied.",
-        ],
-    )
+    try:
+        return await Auth0ManagementClient().complete_registration(payload.user_id)
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
 @router.get("/profile")
@@ -71,58 +70,58 @@ async def read_profile(claims: dict[str, Any] = ReadOwnProfile):
     return claims
 
 
-@router.patch("/profile", response_model=BlueprintResponse)
+@router.patch("/profile")
 async def update_profile(
     payload: dict[str, Any],
     claims: dict[str, Any] = UpdateOwnProfile,
 ):
-    return planned(
-        operation="update own profile metadata",
-        auth0_endpoint="PATCH /api/v2/users/{id}",
-        notes=[
-            "Resolve Auth0 user id from the token subject claim.",
-            "Allow only safe self-editable fields.",
-            "Write user-controlled fields to user_metadata.",
-        ],
-    )
+    try:
+        return await Auth0ManagementClient().update_user(
+            claims["sub"],
+            {"user_metadata": payload},
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.post("/mfa/enroll", response_model=BlueprintResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/mfa/enroll", status_code=status.HTTP_202_ACCEPTED)
 async def enroll_mfa(
     payload: MfaEnrollmentRequest,
     claims: dict[str, Any] = EnrollOwnMfa,
 ):
-    return planned(
-        operation="enroll self-service MFA factor",
-        auth0_endpoint="POST /mfa/associate",
-        notes=[
-            "Use Auth0 MFA API with the user's MFA token during an MFA enrollment flow.",
-            "Persist enrollment state in Auth0 after the challenge is verified.",
-        ],
-    )
+    try:
+        return await Auth0AuthenticationClient().start_mfa_enrollment(
+            mfa_token=payload.mfa_token,
+            authenticator_types=[payload.authenticator_type],
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.post("/mfa/challenge", response_model=BlueprintResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/mfa/challenge", status_code=status.HTTP_202_ACCEPTED)
 async def challenge_mfa(
     payload: MfaChallengeRequest,
     claims: dict[str, Any] = ChallengeOwnMfa,
 ):
-    return planned(
-        operation="challenge self-service MFA factor",
-        auth0_endpoint="POST /mfa/challenge",
-        notes=[
-            "Submit challenge using Auth0 MFA token.",
-            "Exchange verified challenge for tokens through Auth0 OAuth flow.",
-        ],
-    )
+    try:
+        return await Auth0AuthenticationClient().challenge_mfa(
+            mfa_token=payload.mfa_token,
+            challenge_type=payload.challenge_type,
+            authenticator_id=payload.authenticator_id,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.delete("/mfa/enrollments/{enrollment_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@router.delete("/mfa/enrollments/{enrollment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_own_mfa_enrollment(
     enrollment_id: str,
     claims: dict[str, Any] = DeleteOwnMfa,
 ):
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Blueprint only: implement Auth0 MFA enrollment deletion for the authenticated user.",
-    )
+    try:
+        await Auth0ManagementClient().delete_user_authentication_method(
+            claims["sub"],
+            enrollment_id,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)

@@ -1,27 +1,19 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from auth import require_permissions
 from routers.schemas import (
     AdminMfaResetRequest,
-    BlueprintResponse,
     GroupAssignmentRequest,
     GroupCreateRequest,
     PasswordResetRequest,
     UserAttributeUpdateRequest,
     UserListQuery,
 )
+from services.auth0.client import Auth0ClientError, Auth0ManagementClient, raise_http_error
 
 router = APIRouter(prefix="/admin", tags=["user-admin"])
-
-
-def planned(operation: str, auth0_endpoint: str, notes: list[str]) -> BlueprintResponse:
-    return BlueprintResponse(
-        operation=operation,
-        auth0_endpoint=auth0_endpoint,
-        notes=notes,
-    )
 
 
 UserRead = Depends(require_permissions("read:users"))
@@ -34,7 +26,7 @@ GroupUpdate = Depends(require_permissions("update:groups"))
 GroupDelete = Depends(require_permissions("delete:groups"))
 
 
-@router.get("/users", response_model=BlueprintResponse)
+@router.get("/users")
 async def list_users(
     page: Annotated[int, Query(ge=0)] = 0,
     per_page: Annotated[int, Query(ge=1, le=100)] = 25,
@@ -42,114 +34,107 @@ async def list_users(
     claims: dict[str, Any] = UserRead,
 ):
     UserListQuery(page=page, per_page=per_page, query=query)
-    return planned(
-        operation="list users as admin",
-        auth0_endpoint="GET /api/v2/users",
-        notes=[
-            "Pass page, per_page, and optional Lucene query to Auth0.",
-            "Return normalized user summaries rather than raw Auth0 payloads.",
-        ],
-    )
+    try:
+        return await Auth0ManagementClient().list_users(
+            page=page,
+            per_page=per_page,
+            query=query,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.get("/users/{user_id}", response_model=BlueprintResponse)
+@router.get("/users/{user_id}")
 async def read_user(user_id: str, claims: dict[str, Any] = UserRead):
-    return planned(
-        operation="read user as admin",
-        auth0_endpoint="GET /api/v2/users/{id}",
-        notes=["Fetch one Auth0 user by id and map fields for admin display."],
-    )
+    try:
+        return await Auth0ManagementClient().get_user(user_id)
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.patch("/users/{user_id}/attributes", response_model=BlueprintResponse)
+@router.patch("/users/{user_id}/attributes")
 async def update_user_attributes(
     user_id: str,
     payload: UserAttributeUpdateRequest,
     claims: dict[str, Any] = UserWrite,
 ):
-    return planned(
-        operation="modify user attributes as admin",
-        auth0_endpoint="PATCH /api/v2/users/{id}",
-        notes=[
-            "Allow admin-controlled profile, blocked, email_verified, metadata updates.",
-            "Audit admin identity from token claims before calling Auth0.",
-        ],
-    )
+    auth0_payload = payload.model_dump(exclude_none=True)
+    try:
+        return await Auth0ManagementClient().update_user(user_id, auth0_payload)
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.post("/users/{user_id}/password-reset", response_model=BlueprintResponse)
+@router.post("/users/{user_id}/password-reset")
 async def reset_user_password(
     user_id: str,
     payload: PasswordResetRequest,
     claims: dict[str, Any] = PasswordReset,
 ):
-    return planned(
-        operation="send password reset as admin",
-        auth0_endpoint="POST /dbconnections/change_password",
-        notes=[
-            "Send Auth0 password reset email for the user's database connection.",
-            "Use user_id for audit correlation; Auth0 change_password uses email and connection.",
-        ],
-    )
+    try:
+        return await Auth0ManagementClient().create_password_change_ticket(
+            user_id=user_id,
+            email=str(payload.email),
+            connection_id=payload.connection_id,
+            result_url=payload.result_url,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.post("/users/{user_id}/mfa/reset", response_model=BlueprintResponse)
+@router.post("/users/{user_id}/mfa/reset")
 async def reset_user_mfa(
     user_id: str,
     payload: AdminMfaResetRequest,
     claims: dict[str, Any] = MfaReset,
 ):
-    return planned(
-        operation="reset user MFA as admin",
-        auth0_endpoint="DELETE /api/v2/users/{id}/multifactor/{provider}",
-        notes=[
-            "List enrolled factors when provider is omitted.",
-            "Delete selected Auth0 MFA enrollment provider for the user.",
-        ],
-    )
+    try:
+        return await Auth0ManagementClient().reset_user_mfa(
+            user_id,
+            authentication_method_id=payload.authentication_method_id,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.get("/groups", response_model=BlueprintResponse)
+@router.get("/groups")
 async def list_groups(claims: dict[str, Any] = GroupRead):
-    return planned(
-        operation="list user groups",
-        auth0_endpoint="GET /api/v2/roles or GET /api/v2/organizations",
-        notes=[
-            "Auth0 has roles and organizations, not generic groups.",
-            "Decide whether this app maps groups to roles, organizations, or app_metadata.",
-        ],
-    )
+    try:
+        return await Auth0ManagementClient().list_roles()
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.post("/groups", response_model=BlueprintResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/groups", status_code=status.HTTP_201_CREATED)
 async def create_group(payload: GroupCreateRequest, claims: dict[str, Any] = GroupCreate):
-    return planned(
-        operation="create user group",
-        auth0_endpoint="POST /api/v2/roles or POST /api/v2/organizations",
-        notes=["Create the selected Auth0 grouping primitive after the mapping is chosen."],
-    )
+    try:
+        return await Auth0ManagementClient().create_role(
+            name=payload.name,
+            description=payload.description,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.post("/users/{user_id}/groups", response_model=BlueprintResponse)
+@router.post("/users/{user_id}/groups", status_code=status.HTTP_204_NO_CONTENT)
 async def add_user_to_group(
     user_id: str,
     payload: GroupAssignmentRequest,
     claims: dict[str, Any] = GroupUpdate,
 ):
-    return planned(
-        operation="add user to group",
-        auth0_endpoint="POST /api/v2/users/{id}/roles or POST /api/v2/organizations/{id}/members",
-        notes=["Assign the user to the mapped Auth0 role or organization."],
-    )
+    try:
+        await Auth0ManagementClient().assign_roles_to_user(user_id, [payload.group_id])
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
-@router.delete("/users/{user_id}/groups/{group_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@router.delete("/users/{user_id}/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_user_from_group(
     user_id: str,
     group_id: str,
     claims: dict[str, Any] = GroupDelete,
 ):
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Blueprint only: implement Auth0 role or organization removal after group mapping is chosen.",
-    )
+    try:
+        await Auth0ManagementClient().remove_roles_from_user(user_id, [group_id])
+    except Auth0ClientError as error:
+        raise_http_error(error)

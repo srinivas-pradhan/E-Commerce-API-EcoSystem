@@ -15,6 +15,7 @@ class SelfRegistrationRequest(BaseModel):
     password: str = Field(min_length=8)
     given_name: str | None = None
     family_name: str | None = None
+    connection: str | None = None
     user_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -24,6 +25,7 @@ class RegistrationCompleteRequest(BaseModel):
 
 
 class MfaEnrollmentRequest(BaseModel):
+    mfa_token: str
     authenticator_type: str = Field(
         default="otp",
         description="Auth0 MFA authenticator type, such as otp or recovery-code.",
@@ -33,6 +35,7 @@ class MfaEnrollmentRequest(BaseModel):
 class MfaChallengeRequest(BaseModel):
     mfa_token: str
     challenge_type: str = "otp"
+    authenticator_id: str | None = None
 
 
 class UserListQuery(BaseModel):
@@ -51,13 +54,14 @@ class UserAttributeUpdateRequest(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
-    connection: str = "Username-Password-Authentication"
+    connection_id: str | None = None
+    result_url: str | None = None
 
 
 class AdminMfaResetRequest(BaseModel):
-    provider: str | None = Field(
+    authentication_method_id: str | None = Field(
         default=None,
-        description="Optional Auth0 MFA provider to reset. Omit to reset all enrolled factors.",
+        description="Optional Auth0 authentication method id. Omit to reset all methods.",
     )
 
 

@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     auth0_domain: str = "dev-lqyjuexwhe1bupvs.us.auth0.com"
     auth0_client_id: str = "hG5aklxMlkilsmsfF6HjuROKNsivDJLU"
     auth0_client_secret: SecretStr | None = None
+    auth0_connection: str = "Username-Password-Authentication"
     auth0_audience: str = Field(
         default="hG5aklxMlkilsmsfF6HjuROKNsivDJLU",
         description="Auth0 API audience. Defaults to the configured client id.",
@@ -28,5 +29,9 @@ class Settings(BaseSettings):
     @property
     def auth0_jwks_url(self) -> str:
         return f"{self.auth0_issuer}.well-known/jwks.json"
+
+    @property
+    def auth0_management_audience(self) -> str:
+        return f"{self.auth0_issuer}api/v2/"
 
 settings = Settings()
