@@ -8,9 +8,10 @@ Required environment variables:
 
 Optional environment variables:
   AUTH0_AUDIENCE
+  AUTH0_GRANT_CLIENT_ID
 
 The client must be allowed to call the Auth0 Management API with scopes:
-  read:resource_servers update:resource_servers
+  read:resource_servers update:resource_servers read:client_grants create:client_grants update:client_grants
 """
 
 from __future__ import annotations
@@ -81,6 +82,7 @@ class Auth0Config:
     client_id: str
     client_secret: str
     audience: str
+    grant_client_id: str | None
 
     @property
     def issuer(self) -> str:
@@ -97,6 +99,7 @@ def load_config() -> Auth0Config:
     client_id = config_value(env_file, "AUTH0_CLIENT_ID")
     client_secret = config_value(env_file, "AUTH0_CLIENT_SECRET")
     audience = config_value(env_file, "AUTH0_AUDIENCE", client_id)
+    grant_client_id = config_value(env_file, "AUTH0_GRANT_CLIENT_ID")
 
     missing = [
         key
@@ -125,6 +128,7 @@ def load_config() -> Auth0Config:
         client_id=str(client_id),
         client_secret=str(client_secret),
         audience=str(audience),
+        grant_client_id=grant_client_id,
     )
 
 
@@ -233,6 +237,103 @@ def update_resource_server_scopes(
     )
 
 
+def find_client_grant(
+    config: Auth0Config,
+    token: str,
+    client_id: str,
+) -> dict[str, Any] | None:
+    query = urllib.parse.urlencode(
+        {
+            "client_id": client_id,
+            "audience": config.audience,
+            "subject_type": "client",
+        }
+    )
+    response = request_json(
+        "GET",
+        f"{config.management_audience}client-grants?{query}",
+        token=token,
+    )
+
+    if not isinstance(response, list):
+        print("Unexpected Auth0 client grant response.", file=sys.stderr)
+        sys.exit(1)
+
+    for grant in response:
+        if (
+            grant.get("client_id") == client_id
+            and grant.get("audience") == config.audience
+            and grant.get("subject_type", "client") == "client"
+        ):
+            return grant
+
+    return None
+
+
+def create_client_grant(config: Auth0Config, token: str, client_id: str) -> dict[str, Any]:
+    return request_json(
+        "POST",
+        f"{config.management_audience}client-grants",
+        token=token,
+        payload={
+            "client_id": client_id,
+            "audience": config.audience,
+            "scope": list(USER_SERVICE_SCOPES),
+            "subject_type": "client",
+        },
+    )
+
+
+def update_client_grant(
+    config: Auth0Config,
+    token: str,
+    grant: dict[str, Any],
+) -> list[str]:
+    existing_scopes = set(grant.get("scope", []))
+    missing_scopes = [scope for scope in USER_SERVICE_SCOPES if scope not in existing_scopes]
+
+    if not missing_scopes:
+        return []
+
+    merged_scopes = list(existing_scopes)
+    merged_scopes.extend(missing_scopes)
+    encoded_id = urllib.parse.quote(grant["id"], safe="")
+    request_json(
+        "PATCH",
+        f"{config.management_audience}client-grants/{encoded_id}",
+        token=token,
+        payload={"scope": merged_scopes},
+    )
+
+    return missing_scopes
+
+
+def ensure_client_grant(config: Auth0Config, token: str) -> None:
+    if not config.grant_client_id:
+        return
+
+    grant = find_client_grant(config, token, config.grant_client_id)
+    if grant is None:
+        create_client_grant(config, token, config.grant_client_id)
+        print(
+            f"Created client grant for {config.grant_client_id} "
+            f"with {len(USER_SERVICE_SCOPES)} scope(s)."
+        )
+        return
+
+    added_scopes = update_client_grant(config, token, grant)
+    if not added_scopes:
+        print(
+            f"Client grant for {config.grant_client_id} already has "
+            f"all {len(USER_SERVICE_SCOPES)} user-service scope(s)."
+        )
+        return
+
+    print(f"Added {len(added_scopes)} scope(s) to client grant for {config.grant_client_id}:")
+    for scope in added_scopes:
+        print(f"  - {scope}")
+
+
 def main() -> int:
     config = load_config()
     token = get_management_token(config)
@@ -241,12 +342,13 @@ def main() -> int:
 
     if not added:
         print(f"All {len(USER_SERVICE_SCOPES)} user-service scopes already exist.")
-        return 0
+    else:
+        update_resource_server_scopes(config, token, resource_server, merged_scopes)
+        print(f"Created {len(added)} scope(s) for audience {config.audience}:")
+        for scope in added:
+            print(f"  - {scope}")
 
-    update_resource_server_scopes(config, token, resource_server, merged_scopes)
-    print(f"Created {len(added)} scope(s) for audience {config.audience}:")
-    for scope in added:
-        print(f"  - {scope}")
+    ensure_client_grant(config, token)
 
     return 0
 

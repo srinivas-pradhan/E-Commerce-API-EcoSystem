@@ -159,6 +159,64 @@ From the repo root:
 git diff --check
 ```
 
+## Postman
+
+Import the collection at:
+
+```text
+user-service/postman/user-service.postman_collection.json
+```
+
+Set these collection variables before running requests:
+
+```text
+base_url=http://localhost:8080
+auth0_domain=dev-lqyjuexwhe1bupvs.us.auth0.com
+auth0_audience=https://user-service
+postman_client_id=<Auth0 client id for Postman>
+postman_client_secret=<Auth0 client secret for Postman>
+user_id=<Auth0 user id for admin routes>
+group_id=<Auth0 role id for group routes>
+enrollment_id=<Auth0 authentication method id for MFA delete>
+mfa_token=<Auth0 MFA API token for MFA enroll/challenge>
+```
+
+The collection pre-request script calls:
+
+```text
+POST https://{{auth0_domain}}/oauth/token
+```
+
+It uses the client credentials grant, stores `access_token`, caches `access_token_expires_at`, and sends the token as `Authorization: Bearer {{access_token}}`.
+
+The collection requests only the scope needed by the current request. For example, `GET /admin/users` requests `read:users`, while `PATCH /self-service/profile` requests `update:own_profile`. Tokens are cached per scope in the active Postman environment.
+
+If you export Postman environment or credential files, keep them under `user-service/postman/`.
+Postman environment and credential exports are ignored by Git.
+
+The Auth0 client used for Postman tokens must be allowed to request the user-service API scopes needed by the requests you run. For full collection coverage, grant/request:
+
+```text
+read:service_status
+read:auth_config
+read:profile
+create:registration
+complete:registration
+read:own_profile
+update:own_profile
+enroll:own_mfa
+challenge:own_mfa
+delete:own_mfa
+read:users
+update:users
+reset:passwords
+reset:mfa
+read:groups
+create:groups
+update:groups
+delete:groups
+```
+
 ## Layout
 
 ```text
@@ -166,6 +224,7 @@ user-service/
   auth.py
   config.py
   main.py
+  postman/
   routers/
   services/auth0/
   tests/

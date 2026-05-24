@@ -1,6 +1,12 @@
 **/.venv
 **/__pycache__
+**/.DS_Store
 
 
 #Environment Files
 **/.env
+**/*.postman_environment.json
+**/*postman_environment*.json
+**/postman/*environment*.json
+**/postman/*credentials*.json
+**/postman/*.local.json

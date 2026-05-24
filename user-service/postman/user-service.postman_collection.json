@@ -1,0 +1,770 @@
+{
+  "info": {
+    "_postman_id": "5a6b6e04-40e3-4ef8-a982-3dca8614dd01",
+    "name": "User Service",
+    "description": "Auth0-backed user-service API checks. Set environment variables before running: base_url, auth0_domain, auth0_audience, postman_client_id, and postman_client_secret. The collection fetches and caches an Auth0 access token for the current request's required scope.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const requestScopes = {",
+          "  'Service Status': 'read:service_status',",
+          "  'Auth Config': 'read:auth_config',",
+          "  'Current User': 'read:profile',",
+          "  'Start Registration': 'create:registration',",
+          "  'Complete Registration': 'complete:registration',",
+          "  'Read Profile': 'read:own_profile',",
+          "  'Update Profile': 'update:own_profile',",
+          "  'Enroll MFA': 'enroll:own_mfa',",
+          "  'Challenge MFA': 'challenge:own_mfa',",
+          "  'Delete MFA Enrollment': 'delete:own_mfa',",
+          "  'List Users': 'read:users',",
+          "  'Read User': 'read:users',",
+          "  'Update User Attributes': 'update:users',",
+          "  'Create Password Reset Ticket': 'reset:passwords',",
+          "  'Reset User MFA': 'reset:mfa',",
+          "  'List Groups': 'read:groups',",
+          "  'Create Group': 'create:groups',",
+          "  'Add User To Group': 'update:groups',",
+          "  'Remove User From Group': 'delete:groups'",
+          "};",
+          "",
+          "const requiredScope = requestScopes[pm.info.requestName];",
+          "if (!requiredScope) {",
+          "  pm.environment.unset('access_token');",
+          "  return;",
+          "}",
+          "",
+          "if (!pm.variables.get('base_url')) {",
+          "  throw new Error('Set base_url before running user-service requests.');",
+          "}",
+          "",
+          "const tokenKey = 'access_token_' + requiredScope.replace(/[^a-zA-Z0-9]/g, '_');",
+          "const tokenExpiryKey = tokenKey + '_expires_at';",
+          "const tokenExpiresAt = Number(pm.environment.get(tokenExpiryKey) || 0);",
+          "const cachedToken = pm.environment.get(tokenKey);",
+          "if (cachedToken && tokenExpiresAt > Date.now() + 60000) {",
+          "  pm.environment.set('access_token', cachedToken);",
+          "  return;",
+          "}",
+          "",
+          "const auth0Domain = pm.variables.get('auth0_domain');",
+          "const audience = pm.variables.get('auth0_audience');",
+          "const clientId = pm.variables.get('postman_client_id');",
+          "const clientSecret = pm.variables.get('postman_client_secret');",
+          "",
+          "['auth0_domain', 'auth0_audience', 'postman_client_id', 'postman_client_secret'].forEach(function (key) {",
+          "  if (!pm.variables.get(key)) {",
+          "    throw new Error('Set ' + key + ' in the active Postman environment.');",
+          "  }",
+          "});",
+          "",
+          "pm.sendRequest({",
+          "  url: 'https://' + auth0Domain + '/oauth/token',",
+          "  method: 'POST',",
+          "  header: {",
+          "    'Content-Type': 'application/json'",
+          "  },",
+          "  body: {",
+          "    mode: 'raw',",
+          "    raw: JSON.stringify({",
+          "      grant_type: 'client_credentials',",
+          "      client_id: clientId,",
+          "      client_secret: clientSecret,",
+          "      audience: audience,",
+          "      scope: requiredScope",
+          "    })",
+          "  }",
+          "}, function (error, response) {",
+          "  if (error) {",
+          "    throw error;",
+          "  }",
+          "  if (!response || response.code >= 400) {",
+          "    throw new Error('Auth0 token request failed: ' + (response ? response.text() : 'no response'));",
+          "  }",
+          "  const body = response.json();",
+          "  pm.environment.set('access_token', body.access_token);",
+          "  pm.environment.set(tokenKey, body.access_token);",
+          "  pm.environment.set(tokenExpiryKey, String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+          "  pm.environment.set('access_token_scope', requiredScope);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token_expires_at",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "auth0_domain",
+      "value": "dev-lqyjuexwhe1bupvs.us.auth0.com",
+      "type": "string"
+    },
+    {
+      "key": "auth0_audience",
+      "value": "https://user-service",
+      "type": "string"
+    },
+    {
+      "key": "postman_client_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "postman_client_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "auth0|USER_ID",
+      "type": "string"
+    },
+    {
+      "key": "group_id",
+      "value": "rol_GROUP_ID",
+      "type": "string"
+    },
+    {
+      "key": "enrollment_id",
+      "value": "mfa_ENROLLMENT_ID",
+      "type": "string"
+    },
+    {
+      "key": "test_email",
+      "value": "user@example.com",
+      "type": "string"
+    },
+    {
+      "key": "test_password",
+      "value": "ChangeMe123!",
+      "type": "string"
+    },
+    {
+      "key": "mfa_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Core",
+      "item": [
+        {
+          "name": "Service Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('service status is available', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('service identifies Auth0 backend', function () {",
+                  "    pm.expect(pm.response.json()).to.include({ auth_backend: 'auth0' });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auth Config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/auth/config"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('auth config returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('auth config has public fields', function () {",
+                  "    pm.expect(body).to.have.keys(['domain', 'client_id', 'audience', 'issuer']);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('current user returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('token subject is present', function () {",
+                  "    pm.expect(pm.response.json()).to.have.property('sub');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Self Service",
+      "item": [
+        {
+          "name": "Start Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"given_name\": \"Test\",\n  \"family_name\": \"User\",\n  \"user_metadata\": {\n    \"source\": \"postman\"\n  }\n}"
+            },
+            "url": "{{base_url}}/self-service/registration"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('registration returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 401, 403, 409, 502]);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('created user id is present', function () {",
+                  "    pm.expect(body).to.have.property('user_id');",
+                  "  });",
+                  "  pm.collectionVariables.set('user_id', body.user_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
+            },
+            "url": "{{base_url}}/self-service/registration/complete"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('complete registration returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/self-service/profile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('profile returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('profile has subject', function () {",
+                  "    pm.expect(pm.response.json()).to.have.property('sub');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferred_name\": \"Postman User\"\n}"
+            },
+            "url": "{{base_url}}/self-service/profile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('update profile returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enroll MFA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"authenticator_type\": \"otp\"\n}"
+            },
+            "url": "{{base_url}}/self-service/mfa/enroll"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('MFA enroll returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Challenge MFA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"challenge_type\": \"otp\"\n}"
+            },
+            "url": "{{base_url}}/self-service/mfa/challenge"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('MFA challenge returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete MFA Enrollment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/self-service/mfa/enrollments/{{enrollment_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('delete MFA enrollment returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/users?page=0&per_page=25",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "per_page",
+                  "value": "25"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list users returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/admin/users/{{user_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('read user returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User Attributes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_metadata\": {\n    \"admin_note\": \"Updated from Postman\"\n  }\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/attributes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('update user returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Password Reset Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\"\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/password-reset"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('password reset returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('ticket url is present', function () {",
+                  "    pm.expect(pm.response.json()).to.have.property('ticket');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset User MFA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/mfa/reset"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('MFA reset returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/admin/groups"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list groups returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-test-group\",\n  \"description\": \"Created by Postman collection\"\n}"
+            },
+            "url": "{{base_url}}/admin/groups"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('create group returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 401, 403, 409, 502]);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) { pm.collectionVariables.set('group_id', body.id); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add User To Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"group_id\": \"{{group_id}}\"\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/groups"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('add user to group returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove User From Group",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/admin/users/{{user_id}}/groups/{{group_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('remove user from group returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Negative Authorization",
+      "item": [
+        {
+          "name": "Missing Token - Service Status",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('missing token is rejected', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('error mentions missing bearer token', function () {",
+                  "  pm.expect(pm.response.json().detail).to.eql('Missing bearer token');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
