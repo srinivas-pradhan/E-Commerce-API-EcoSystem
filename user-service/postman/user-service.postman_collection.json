@@ -6,14 +6,7 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{access_token}}",
-        "type": "string"
-      }
-    ]
+    "type": "noauth"
   },
   "event": [
     {
@@ -21,31 +14,10 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "const requestScopes = {",
-          "  'Service Status': 'read:service_status',",
-          "  'Auth Config': 'read:auth_config',",
-          "  'Current User': 'read:profile',",
-          "  'Start Registration': 'create:registration',",
-          "  'Complete Registration': 'complete:registration',",
-          "  'Read Profile': 'read:own_profile',",
-          "  'Update Profile': 'update:own_profile',",
-          "  'Enroll MFA': 'enroll:own_mfa',",
-          "  'Challenge MFA': 'challenge:own_mfa',",
-          "  'Delete MFA Enrollment': 'delete:own_mfa',",
-          "  'List Users': 'read:users',",
-          "  'Read User': 'read:users',",
-          "  'Update User Attributes': 'update:users',",
-          "  'Create Password Reset Ticket': 'reset:passwords',",
-          "  'Reset User MFA': 'reset:mfa',",
-          "  'List Groups': 'read:groups',",
-          "  'Create Group': 'create:groups',",
-          "  'Add User To Group': 'update:groups',",
-          "  'Remove User From Group': 'delete:groups'",
-          "};",
+          "const requestScopes = {\n  \"Service Status\": \"read:service_status\",\n  \"Auth Config\": \"read:auth_config\",\n  \"Current User\": \"read:profile\",\n  \"Start Registration\": \"create:registration\",\n  \"Complete Registration\": \"complete:registration\",\n  \"Read Profile\": \"read:own_profile\",\n  \"Update Profile\": \"update:own_profile\",\n  \"Enroll MFA\": \"enroll:own_mfa\",\n  \"Challenge MFA\": \"challenge:own_mfa\",\n  \"Delete MFA Enrollment\": \"delete:own_mfa\",\n  \"List Users\": \"read:users\",\n  \"Read User\": \"read:users\",\n  \"Update User Attributes\": \"update:users\",\n  \"Create Password Reset Ticket\": \"reset:passwords\",\n  \"Reset User MFA\": \"reset:mfa\",\n  \"List Groups\": \"read:groups\",\n  \"Create Group\": \"create:groups\",\n  \"Add User To Group\": \"update:groups\",\n  \"Remove User From Group\": \"delete:groups\"\n};",
           "",
           "const requiredScope = requestScopes[pm.info.requestName];",
           "if (!requiredScope) {",
-          "  pm.environment.unset('access_token');",
           "  return;",
           "}",
           "",
@@ -57,51 +29,12 @@
           "const tokenExpiryKey = tokenKey + '_expires_at';",
           "const tokenExpiresAt = Number(pm.environment.get(tokenExpiryKey) || 0);",
           "const cachedToken = pm.environment.get(tokenKey);",
-          "if (cachedToken && tokenExpiresAt > Date.now() + 60000) {",
-          "  pm.environment.set('access_token', cachedToken);",
-          "  return;",
+          "if (!cachedToken) {",
+          "  throw new Error('Missing scoped token. Run Auth0 Tokens / Get token - ' + requiredScope + ' first.');",
           "}",
-          "",
-          "const auth0Domain = pm.variables.get('auth0_domain');",
-          "const audience = pm.variables.get('auth0_audience');",
-          "const clientId = pm.variables.get('postman_client_id');",
-          "const clientSecret = pm.variables.get('postman_client_secret');",
-          "",
-          "['auth0_domain', 'auth0_audience', 'postman_client_id', 'postman_client_secret'].forEach(function (key) {",
-          "  if (!pm.variables.get(key)) {",
-          "    throw new Error('Set ' + key + ' in the active Postman environment.');",
-          "  }",
-          "});",
-          "",
-          "pm.sendRequest({",
-          "  url: 'https://' + auth0Domain + '/oauth/token',",
-          "  method: 'POST',",
-          "  header: {",
-          "    'Content-Type': 'application/json'",
-          "  },",
-          "  body: {",
-          "    mode: 'raw',",
-          "    raw: JSON.stringify({",
-          "      grant_type: 'client_credentials',",
-          "      client_id: clientId,",
-          "      client_secret: clientSecret,",
-          "      audience: audience,",
-          "      scope: requiredScope",
-          "    })",
-          "  }",
-          "}, function (error, response) {",
-          "  if (error) {",
-          "    throw error;",
-          "  }",
-          "  if (!response || response.code >= 400) {",
-          "    throw new Error('Auth0 token request failed: ' + (response ? response.text() : 'no response'));",
-          "  }",
-          "  const body = response.json();",
-          "  pm.environment.set('access_token', body.access_token);",
-          "  pm.environment.set(tokenKey, body.access_token);",
-          "  pm.environment.set(tokenExpiryKey, String(Date.now() + ((body.expires_in || 3600) * 1000)));",
-          "  pm.environment.set('access_token_scope', requiredScope);",
-          "});"
+          "if (tokenExpiresAt && tokenExpiresAt <= Date.now() + 60000) {",
+          "  throw new Error('Scoped token is expired or near expiry. Rerun Auth0 Tokens / Get token - ' + requiredScope + '.');",
+          "}"
         ]
       }
     }
@@ -110,16 +43,6 @@
     {
       "key": "base_url",
       "value": "http://localhost:8080",
-      "type": "string"
-    },
-    {
-      "key": "access_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "access_token_expires_at",
-      "value": "",
       "type": "string"
     },
     {
@@ -175,14 +98,803 @@
   ],
   "item": [
     {
+      "name": "Auth0 Tokens",
+      "description": "Run these token requests once per needed scope. API requests reference the matching scoped token variable directly in Authorization.",
+      "item": [
+        {
+          "name": "Get token - read:service_status",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:service_status\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:service_status."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_service_status', body.access_token);",
+                  "pm.environment.set('access_token_read_service_status_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:service_status');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:auth_config');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:auth_config",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:auth_config\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:auth_config."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_auth_config', body.access_token);",
+                  "pm.environment.set('access_token_read_auth_config_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:auth_config');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:profile');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:profile",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:profile\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_profile', body.access_token);",
+                  "pm.environment.set('access_token_read_profile_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:profile');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - create:registration');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - create:registration",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"create:registration\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope create:registration."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_create_registration', body.access_token);",
+                  "pm.environment.set('access_token_create_registration_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'create:registration');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - complete:registration');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - complete:registration",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"complete:registration\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope complete:registration."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_complete_registration', body.access_token);",
+                  "pm.environment.set('access_token_complete_registration_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'complete:registration');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:own_profile');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:own_profile",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:own_profile\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:own_profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_own_profile', body.access_token);",
+                  "pm.environment.set('access_token_read_own_profile_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:own_profile');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - update:own_profile');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - update:own_profile",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"update:own_profile\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope update:own_profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_update_own_profile', body.access_token);",
+                  "pm.environment.set('access_token_update_own_profile_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'update:own_profile');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - enroll:own_mfa');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - enroll:own_mfa",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"enroll:own_mfa\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope enroll:own_mfa."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_enroll_own_mfa', body.access_token);",
+                  "pm.environment.set('access_token_enroll_own_mfa_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'enroll:own_mfa');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - challenge:own_mfa');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - challenge:own_mfa",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"challenge:own_mfa\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope challenge:own_mfa."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_challenge_own_mfa', body.access_token);",
+                  "pm.environment.set('access_token_challenge_own_mfa_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'challenge:own_mfa');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - delete:own_mfa');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - delete:own_mfa",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"delete:own_mfa\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope delete:own_mfa."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_delete_own_mfa', body.access_token);",
+                  "pm.environment.set('access_token_delete_own_mfa_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'delete:own_mfa');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:users');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:users",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:users\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:users."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_users', body.access_token);",
+                  "pm.environment.set('access_token_read_users_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:users');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - update:users');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - update:users",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"update:users\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope update:users."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_update_users', body.access_token);",
+                  "pm.environment.set('access_token_update_users_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'update:users');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - reset:passwords');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - reset:passwords",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"reset:passwords\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope reset:passwords."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_reset_passwords', body.access_token);",
+                  "pm.environment.set('access_token_reset_passwords_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'reset:passwords');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - reset:mfa');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - reset:mfa",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"reset:mfa\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope reset:mfa."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_reset_mfa', body.access_token);",
+                  "pm.environment.set('access_token_reset_mfa_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'reset:mfa');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:groups');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:groups",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:groups\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:groups."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_groups', body.access_token);",
+                  "pm.environment.set('access_token_read_groups_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:groups');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - create:groups');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - create:groups",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"create:groups\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope create:groups."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_create_groups', body.access_token);",
+                  "pm.environment.set('access_token_create_groups_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'create:groups');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - update:groups');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - update:groups",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"update:groups\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope update:groups."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_update_groups', body.access_token);",
+                  "pm.environment.set('access_token_update_groups_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'update:groups');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - delete:groups');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - delete:groups",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"delete:groups\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope delete:groups."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_delete_groups', body.access_token);",
+                  "pm.environment.set('access_token_delete_groups_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'delete:groups');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Service Status');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Core",
       "item": [
         {
           "name": "Service Status",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_service_status}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -207,8 +919,17 @@
           "name": "Auth Config",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/auth/config"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_auth_config}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/auth/config",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -234,8 +955,17 @@
           "name": "Current User",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/me"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_profile}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/me",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -267,6 +997,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_create_registration}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -275,7 +1010,10 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"given_name\": \"Test\",\n  \"family_name\": \"User\",\n  \"user_metadata\": {\n    \"source\": \"postman\"\n  }\n}"
             },
-            "url": "{{base_url}}/self-service/registration"
+            "url": "{{base_url}}/self-service/registration",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -304,6 +1042,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_complete_registration}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -312,7 +1055,10 @@
               "mode": "raw",
               "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
             },
-            "url": "{{base_url}}/self-service/registration/complete"
+            "url": "{{base_url}}/self-service/registration/complete",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -332,8 +1078,17 @@
           "name": "Read Profile",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/self-service/profile"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_own_profile}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/self-service/profile",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -360,6 +1115,11 @@
             "method": "PATCH",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_update_own_profile}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -368,7 +1128,10 @@
               "mode": "raw",
               "raw": "{\n  \"preferred_name\": \"Postman User\"\n}"
             },
-            "url": "{{base_url}}/self-service/profile"
+            "url": "{{base_url}}/self-service/profile",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -390,6 +1153,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_enroll_own_mfa}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -398,7 +1166,10 @@
               "mode": "raw",
               "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"authenticator_type\": \"otp\"\n}"
             },
-            "url": "{{base_url}}/self-service/mfa/enroll"
+            "url": "{{base_url}}/self-service/mfa/enroll",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -420,6 +1191,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_challenge_own_mfa}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -428,7 +1204,10 @@
               "mode": "raw",
               "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"challenge_type\": \"otp\"\n}"
             },
-            "url": "{{base_url}}/self-service/mfa/challenge"
+            "url": "{{base_url}}/self-service/mfa/challenge",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -448,8 +1227,17 @@
           "name": "Delete MFA Enrollment",
           "request": {
             "method": "DELETE",
-            "header": [],
-            "url": "{{base_url}}/self-service/mfa/enrollments/{{enrollment_id}}"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_delete_own_mfa}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/self-service/mfa/enrollments/{{enrollment_id}}",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -474,7 +1262,13 @@
           "name": "List Users",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_users}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/admin/users?page=0&per_page=25",
               "host": [
@@ -494,6 +1288,9 @@
                   "value": "25"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -514,8 +1311,17 @@
           "name": "Read User",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/admin/users/{{user_id}}"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_users}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/users/{{user_id}}",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -537,6 +1343,11 @@
             "method": "PATCH",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_update_users}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -545,7 +1356,10 @@
               "mode": "raw",
               "raw": "{\n  \"user_metadata\": {\n    \"admin_note\": \"Updated from Postman\"\n  }\n}"
             },
-            "url": "{{base_url}}/admin/users/{{user_id}}/attributes"
+            "url": "{{base_url}}/admin/users/{{user_id}}/attributes",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -567,6 +1381,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_reset_passwords}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -575,7 +1394,10 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{test_email}}\"\n}"
             },
-            "url": "{{base_url}}/admin/users/{{user_id}}/password-reset"
+            "url": "{{base_url}}/admin/users/{{user_id}}/password-reset",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -602,6 +1424,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_reset_mfa}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -610,7 +1437,10 @@
               "mode": "raw",
               "raw": "{}"
             },
-            "url": "{{base_url}}/admin/users/{{user_id}}/mfa/reset"
+            "url": "{{base_url}}/admin/users/{{user_id}}/mfa/reset",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -630,8 +1460,17 @@
           "name": "List Groups",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/admin/groups"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_groups}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/groups",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -653,6 +1492,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_create_groups}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -661,7 +1505,10 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"postman-test-group\",\n  \"description\": \"Created by Postman collection\"\n}"
             },
-            "url": "{{base_url}}/admin/groups"
+            "url": "{{base_url}}/admin/groups",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -687,6 +1534,11 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_update_groups}}",
+                "type": "text"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -695,7 +1547,10 @@
               "mode": "raw",
               "raw": "{\n  \"group_id\": \"{{group_id}}\"\n}"
             },
-            "url": "{{base_url}}/admin/users/{{user_id}}/groups"
+            "url": "{{base_url}}/admin/users/{{user_id}}/groups",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -715,8 +1570,17 @@
           "name": "Remove User From Group",
           "request": {
             "method": "DELETE",
-            "header": [],
-            "url": "{{base_url}}/admin/users/{{user_id}}/groups/{{group_id}}"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_delete_groups}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/users/{{user_id}}/groups/{{group_id}}",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "event": [
             {
@@ -764,7 +1628,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "Run this folder manually when you want to verify missing-token behavior. It is not part of the automatic happy-path token/API run."
     }
   ]
 }

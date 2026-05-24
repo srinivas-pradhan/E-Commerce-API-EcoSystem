@@ -143,6 +143,7 @@ cd user-service
 ```
 
 The user service currently runs on port `8080`.
+The start script exports values from `user-service/.env` into the FastAPI process before startup. Restart the service after changing Auth0 settings such as `AUTH0_AUDIENCE`.
 
 ## Validation
 
@@ -181,15 +182,47 @@ enrollment_id=<Auth0 authentication method id for MFA delete>
 mfa_token=<Auth0 MFA API token for MFA enroll/challenge>
 ```
 
-The collection pre-request script calls:
+The collection includes an `Auth0 Tokens` folder with one token request per API scope. Run the full collection from `Auth0 Tokens / Get token - read:service_status` and Postman will generate each scoped token, store it in the environment, then continue into the API requests.
+
+Each token request calls:
 
 ```text
 POST https://{{auth0_domain}}/oauth/token
 ```
 
-It uses the client credentials grant, stores `access_token`, caches `access_token_expires_at`, and sends the token as `Authorization: Bearer {{access_token}}`.
+It uses the client credentials grant and caches the token in a scope-specific environment variable such as:
 
-The collection requests only the scope needed by the current request. For example, `GET /admin/users` requests `read:users`, while `PATCH /self-service/profile` requests `update:own_profile`. Tokens are cached per scope in the active Postman environment.
+```text
+access_token_read_users
+access_token_update_own_profile
+```
+
+API requests do not fetch tokens asynchronously. Each API request references the exact scoped token variable in its own Authorization config. For example:
+
+```text
+GET /                         Authorization: Bearer {{access_token_read_service_status}}
+GET /admin/users              Authorization: Bearer {{access_token_read_users}}
+PATCH /self-service/profile   Authorization: Bearer {{access_token_update_own_profile}}
+```
+
+For targeted manual testing, you can also run only the token request for the API you want. For example, run `Auth0 Tokens / Get token - read:users` before `GET /admin/users`, or run `Auth0 Tokens / Get token - update:own_profile` before `PATCH /self-service/profile`. The API request then uses the matching environment variable directly.
+
+You should not need to copy tokens by hand.
+
+If every request returns `401`, open the Postman Console and confirm the Auth0 token request succeeds. The service response body distinguishes the common causes:
+
+```text
+{"detail":"Missing bearer token"}        # Postman did not send Authorization
+{"detail":"Could not validate credentials"} # Token was sent but rejected
+```
+
+If the token was sent but rejected, confirm the running service loaded the same audience Postman used:
+
+```text
+AUTH0_AUDIENCE=https://user-service
+```
+
+Then restart `./start-user-service.sh`.
 
 If you export Postman environment or credential files, keep them under `user-service/postman/`.
 Postman environment and credential exports are ignored by Git.
