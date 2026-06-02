@@ -1,0 +1,105 @@
+name: User Service CI
+
+on:
+  push:
+    paths:
+      - "user-service/**"
+      - "scripts/create_auth0_scopes.py"
+      - ".github/workflows/user-service-ci.yml"
+  pull_request:
+    paths:
+      - "user-service/**"
+      - "scripts/create_auth0_scopes.py"
+      - ".github/workflows/user-service-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHON_VERSION: "3.12"
+  USER_SERVICE_DIR: user-service
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ${{ env.USER_SERVICE_DIR }}/requirements.txt
+
+      - name: Install user-service dependencies
+        run: python -m pip install -r "${USER_SERVICE_DIR}/requirements.txt"
+
+      - name: Run user-service unit tests
+        working-directory: ${{ env.USER_SERVICE_DIR }}
+        run: python -m unittest discover -s tests
+
+  python-validation:
+    name: Python Validation
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ${{ env.USER_SERVICE_DIR }}/requirements.txt
+
+      - name: Install user-service dependencies
+        run: python -m pip install -r "${USER_SERVICE_DIR}/requirements.txt"
+
+      - name: Compile user-service Python files
+        working-directory: ${{ env.USER_SERVICE_DIR }}
+        run: >-
+          python -m compileall
+          *.py
+          routers/*.py
+          services/*.py
+          services/auth0/*.py
+          tests/*.py
+
+  api-artifact-validation:
+    name: API Artifact Validation
+    runs-on: ubuntu-latest
+    needs: python-validation
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ${{ env.USER_SERVICE_DIR }}/requirements.txt
+
+      - name: Install user-service dependencies
+        run: python -m pip install -r "${USER_SERVICE_DIR}/requirements.txt"
+
+      - name: Validate canonical OpenAPI document
+        run: >-
+          python -c
+          "import yaml;
+          yaml.safe_load(open('user-service/openapi/user-service.openapi.yaml', encoding='utf-8'))"
+
+      - name: Validate Postman collection JSON
+        run: python -m json.tool user-service/postman/user-service.postman_collection.json > /dev/null
