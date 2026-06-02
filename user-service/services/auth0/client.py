@@ -69,6 +69,18 @@ class Auth0BaseClient:
         return quote(value, safe="")
 
 
+def compose_search_query(
+    query: str | None = None,
+    start_query: str | None = None,
+    end_query: str | None = None,
+) -> str | None:
+    clauses = [clause.strip() for clause in [query, start_query, end_query] if clause and clause.strip()]
+    if not clauses:
+        return None
+
+    return " AND ".join(f"({clause})" for clause in clauses)
+
+
 class Auth0ManagementClient(Auth0BaseClient):
     def __init__(self, timeout: float = 10):
         super().__init__(timeout=timeout)
@@ -130,14 +142,17 @@ class Auth0ManagementClient(Auth0BaseClient):
         page: int = 0,
         per_page: int = 25,
         query: str | None = None,
+        start_query: str | None = None,
+        end_query: str | None = None,
     ) -> Any:
         params: dict[str, Any] = {
             "page": page,
             "per_page": per_page,
             "include_totals": "true",
         }
-        if query:
-            params["q"] = query
+        composed_query = compose_search_query(query, start_query, end_query)
+        if composed_query:
+            params["q"] = composed_query
             params["search_engine"] = "v3"
 
         return await self.management_request("GET", "/users", params=params)
@@ -182,11 +197,30 @@ class Auth0ManagementClient(Auth0BaseClient):
             json=payload,
         )
 
-    async def list_roles(self) -> Any:
+    async def list_roles(
+        self,
+        *,
+        page: int = 0,
+        per_page: int = 25,
+        query: str | None = None,
+        start_query: str | None = None,
+        end_query: str | None = None,
+    ) -> Any:
+        name_filter = " ".join(
+            clause.strip() for clause in [query, start_query, end_query] if clause and clause.strip()
+        )
+        params: dict[str, Any] = {
+            "page": page,
+            "per_page": per_page,
+            "include_totals": "true",
+        }
+        if name_filter:
+            params["name_filter"] = name_filter
+
         return await self.management_request(
             "GET",
             "/roles",
-            params={"per_page": 100, "include_totals": "true"},
+            params=params,
         )
 
     async def create_role(self, *, name: str, description: str | None = None) -> dict[str, Any]:

@@ -32,6 +32,9 @@ USER_SERVICE_ENV = REPO_ROOT / "user-service" / ".env"
 
 USER_SERVICE_SCOPES = {
     "read:service_status": "Read user-service health and service metadata",
+    "read:health_liveness": "Read user-service liveness health checks",
+    "read:health_readiness": "Read user-service readiness health checks",
+    "read:health_dependencies": "Read user-service non-secret dependency health details",
     "read:auth_config": "Read public Auth0 client configuration",
     "read:profile": "Read caller profile claims",
     "create:registration": "Start self-service user registration",

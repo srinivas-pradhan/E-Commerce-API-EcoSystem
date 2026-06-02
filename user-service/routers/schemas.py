@@ -42,6 +42,16 @@ class UserListQuery(BaseModel):
     page: int = Field(default=0, ge=0)
     per_page: int = Field(default=25, ge=1, le=100)
     query: str | None = None
+    start_query: str | None = None
+    end_query: str | None = None
+
+
+class GroupListQuery(BaseModel):
+    page: int = Field(default=0, ge=0)
+    per_page: int = Field(default=25, ge=1, le=100)
+    query: str | None = None
+    start_query: str | None = None
+    end_query: str | None = None
 
 
 class UserAttributeUpdateRequest(BaseModel):

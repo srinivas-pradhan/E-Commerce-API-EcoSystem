@@ -1,0 +1,70 @@
+from pathlib import Path
+import unittest
+
+
+class OpenApiDocsTest(unittest.TestCase):
+    def test_canonical_openapi_doc_covers_current_routes_and_scopes(self):
+        service_root = Path(__file__).resolve().parents[1]
+        spec = service_root.joinpath("openapi", "user-service.openapi.yaml").read_text()
+
+        expected_fragments = [
+            "openapi: 3.1.0",
+            "title: User Service API",
+            "operationId: readServiceStatus",
+            "operationId: readHealthLiveness",
+            "operationId: readHealthReadiness",
+            "operationId: readHealthDependencies",
+            "operationId: readAuthConfig",
+            "operationId: readCurrentUser",
+            "operationId: startRegistration",
+            "operationId: completeRegistration",
+            "operationId: readOwnProfile",
+            "operationId: updateOwnProfile",
+            "operationId: enrollOwnMfa",
+            "operationId: challengeOwnMfa",
+            "operationId: deleteOwnMfaEnrollment",
+            "operationId: listUsers",
+            "operationId: readUser",
+            "operationId: updateUserAttributes",
+            "operationId: resetUserPassword",
+            "operationId: resetUserMfa",
+            "operationId: listGroups",
+            "operationId: createGroup",
+            "operationId: addUserToGroup",
+            "operationId: removeUserFromGroup",
+            "x-required-permission: read:service_status",
+            "x-required-permission: read:health_liveness",
+            "x-required-permission: read:health_readiness",
+            "x-required-permission: read:health_dependencies",
+            "x-required-permission: read:auth_config",
+            "x-required-permission: read:profile",
+            "x-required-permission: create:registration",
+            "x-required-permission: complete:registration",
+            "x-required-permission: read:own_profile",
+            "x-required-permission: update:own_profile",
+            "x-required-permission: enroll:own_mfa",
+            "x-required-permission: challenge:own_mfa",
+            "x-required-permission: delete:own_mfa",
+            "x-required-permission: read:users",
+            "x-required-permission: update:users",
+            "x-required-permission: reset:passwords",
+            "x-required-permission: reset:mfa",
+            "x-required-permission: read:groups",
+            "x-required-permission: create:groups",
+            "x-required-permission: update:groups",
+            "x-required-permission: delete:groups",
+            "ServiceStatusResponse:",
+            "HealthLivenessResponse:",
+            "HealthReadinessResponse:",
+            "HealthDependenciesResponse:",
+            "AuthConfigResponse:",
+            "ClaimsResponse:",
+            "SelfRegistrationRequest:",
+            "UserAttributeUpdateRequest:",
+            "GroupCreateRequest:",
+            "bearerFormat: JWT",
+        ]
+
+        for fragment in expected_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, spec)

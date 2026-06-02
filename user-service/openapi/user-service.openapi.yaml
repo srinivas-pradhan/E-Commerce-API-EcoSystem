@@ -1,0 +1,886 @@
+openapi: 3.1.0
+info:
+  title: User Service API
+  version: 0.1.0
+  description: Auth0-protected identity, self-service, and user administration API.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: health
+    description: Health and core identity endpoints.
+  - name: self-service
+    description: User-managed registration, profile, and MFA endpoints.
+  - name: user-admin
+    description: Admin user, password, MFA, and group management endpoints.
+security:
+  - bearerAuth: []
+paths:
+  /:
+    get:
+      tags: [health]
+      summary: Read service status
+      operationId: readServiceStatus
+      x-required-permission: read:service_status
+      security:
+        - bearerAuth: ["read:service_status"]
+      responses:
+        "200":
+          description: Service status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /health/live:
+    get:
+      tags: [health]
+      summary: Read liveness
+      operationId: readHealthLiveness
+      x-required-permission: read:health_liveness
+      security:
+        - bearerAuth: ["read:health_liveness"]
+      responses:
+        "200":
+          description: Liveness status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthLivenessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /health/ready:
+    get:
+      tags: [health]
+      summary: Read readiness
+      operationId: readHealthReadiness
+      x-required-permission: read:health_readiness
+      security:
+        - bearerAuth: ["read:health_readiness"]
+      responses:
+        "200":
+          description: Readiness status and local configuration checks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthReadinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /health/dependencies:
+    get:
+      tags: [health]
+      summary: Read dependency health
+      operationId: readHealthDependencies
+      x-required-permission: read:health_dependencies
+      security:
+        - bearerAuth: ["read:health_dependencies"]
+      responses:
+        "200":
+          description: Non-secret Auth0 dependency details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthDependenciesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /auth/config:
+    get:
+      tags: [health]
+      summary: Read public Auth0 configuration
+      operationId: readAuthConfig
+      x-required-permission: read:auth_config
+      security:
+        - bearerAuth: ["read:auth_config"]
+      responses:
+        "200":
+          description: Public Auth0 configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthConfigResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /me:
+    get:
+      tags: [health]
+      summary: Read current token claims
+      operationId: readCurrentUser
+      x-required-permission: read:profile
+      security:
+        - bearerAuth: ["read:profile"]
+      responses:
+        "200":
+          description: Verified Auth0 JWT claims.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /self-service/registration:
+    post:
+      tags: [self-service]
+      summary: Start user registration
+      operationId: startRegistration
+      x-required-permission: create:registration
+      security:
+        - bearerAuth: ["create:registration"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelfRegistrationRequest"
+      responses:
+        "201":
+          description: Auth0 user created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /self-service/registration/complete:
+    post:
+      tags: [self-service]
+      summary: Complete user registration
+      operationId: completeRegistration
+      x-required-permission: complete:registration
+      security:
+        - bearerAuth: ["complete:registration"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationCompleteRequest"
+      responses:
+        "200":
+          description: Registration completion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /self-service/profile:
+    get:
+      tags: [self-service]
+      summary: Read own profile
+      operationId: readOwnProfile
+      x-required-permission: read:own_profile
+      security:
+        - bearerAuth: ["read:own_profile"]
+      responses:
+        "200":
+          description: Verified Auth0 JWT claims for the current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      tags: [self-service]
+      summary: Update own profile metadata
+      operationId: updateOwnProfile
+      x-required-permission: update:own_profile
+      security:
+        - bearerAuth: ["update:own_profile"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated Auth0 user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /self-service/mfa/enroll:
+    post:
+      tags: [self-service]
+      summary: Enroll own MFA authenticator
+      operationId: enrollOwnMfa
+      x-required-permission: enroll:own_mfa
+      security:
+        - bearerAuth: ["enroll:own_mfa"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaEnrollmentRequest"
+      responses:
+        "202":
+          description: MFA enrollment started.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /self-service/mfa/challenge:
+    post:
+      tags: [self-service]
+      summary: Challenge own MFA authenticator
+      operationId: challengeOwnMfa
+      x-required-permission: challenge:own_mfa
+      security:
+        - bearerAuth: ["challenge:own_mfa"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaChallengeRequest"
+      responses:
+        "202":
+          description: MFA challenge started.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /self-service/mfa/enrollments/{enrollment_id}:
+    delete:
+      tags: [self-service]
+      summary: Delete own MFA enrollment
+      operationId: deleteOwnMfaEnrollment
+      x-required-permission: delete:own_mfa
+      security:
+        - bearerAuth: ["delete:own_mfa"]
+      parameters:
+        - $ref: "#/components/parameters/EnrollmentId"
+      responses:
+        "204":
+          description: MFA enrollment deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users:
+    get:
+      tags: [user-admin]
+      summary: List users
+      operationId: listUsers
+      x-required-permission: read:users
+      security:
+        - bearerAuth: ["read:users"]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Query"
+        - $ref: "#/components/parameters/StartQuery"
+        - $ref: "#/components/parameters/EndQuery"
+      responses:
+        "200":
+          description: Auth0 user search result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0ListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}:
+    get:
+      tags: [user-admin]
+      summary: Read user
+      operationId: readUser
+      x-required-permission: read:users
+      security:
+        - bearerAuth: ["read:users"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Auth0 user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/attributes:
+    patch:
+      tags: [user-admin]
+      summary: Update user attributes
+      operationId: updateUserAttributes
+      x-required-permission: update:users
+      security:
+        - bearerAuth: ["update:users"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserAttributeUpdateRequest"
+      responses:
+        "200":
+          description: Updated Auth0 user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/password-reset:
+    post:
+      tags: [user-admin]
+      summary: Create password reset ticket
+      operationId: resetUserPassword
+      x-required-permission: reset:passwords
+      security:
+        - bearerAuth: ["reset:passwords"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+      responses:
+        "200":
+          description: Auth0 password change ticket.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/mfa/reset:
+    post:
+      tags: [user-admin]
+      summary: Reset user MFA
+      operationId: resetUserMfa
+      x-required-permission: reset:mfa
+      security:
+        - bearerAuth: ["reset:mfa"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMfaResetRequest"
+      responses:
+        "200":
+          description: Auth0 MFA reset result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/groups:
+    get:
+      tags: [user-admin]
+      summary: List groups
+      operationId: listGroups
+      x-required-permission: read:groups
+      security:
+        - bearerAuth: ["read:groups"]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Query"
+        - $ref: "#/components/parameters/StartQuery"
+        - $ref: "#/components/parameters/EndQuery"
+      responses:
+        "200":
+          description: Auth0 role search result. Groups are represented as Auth0 Roles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0ListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+    post:
+      tags: [user-admin]
+      summary: Create group
+      operationId: createGroup
+      x-required-permission: create:groups
+      security:
+        - bearerAuth: ["create:groups"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupCreateRequest"
+      responses:
+        "201":
+          description: Created Auth0 Role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/groups:
+    post:
+      tags: [user-admin]
+      summary: Add user to group
+      operationId: addUserToGroup
+      x-required-permission: update:groups
+      security:
+        - bearerAuth: ["update:groups"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupAssignmentRequest"
+      responses:
+        "204":
+          description: User assigned to group.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/groups/{group_id}:
+    delete:
+      tags: [user-admin]
+      summary: Remove user from group
+      operationId: removeUserFromGroup
+      x-required-permission: delete:groups
+      security:
+        - bearerAuth: ["delete:groups"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "204":
+          description: User removed from group.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0 access token with route-specific permissions in the permissions claim.
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    Query:
+      name: query
+      in: query
+      schema:
+        type: string
+      description: Primary search fragment.
+    StartQuery:
+      name: start_query
+      in: query
+      schema:
+        type: string
+      description: Optional search fragment used as the start bound.
+    EndQuery:
+      name: end_query
+      in: query
+      schema:
+        type: string
+      description: Optional search fragment used as the end bound.
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: auth0|USER_ID
+    GroupId:
+      name: group_id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: rol_GROUP_ID
+    EnrollmentId:
+      name: enrollment_id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: mfa_ENROLLMENT_ID
+  responses:
+    Unauthorized:
+      description: Missing, malformed, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UnauthorizedError"
+    Forbidden:
+      description: Bearer token is valid but missing one or more required permissions.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ForbiddenError"
+    Auth0Error:
+      description: Auth0 upstream error translated by the service.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+  schemas:
+    ServiceStatusResponse:
+      type: object
+      required: [service, auth_backend]
+      properties:
+        service:
+          type: string
+          example: user-auth
+        auth_backend:
+          type: string
+          example: auth0
+    HealthLivenessResponse:
+      type: object
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          example: user-auth
+        status:
+          type: string
+          enum: [live]
+    HealthReadinessResponse:
+      type: object
+      required: [service, status, checks]
+      properties:
+        service:
+          type: string
+          example: user-auth
+        status:
+          type: string
+          enum: [ready, degraded]
+        checks:
+          type: object
+          required:
+            - auth0_domain_configured
+            - auth0_client_id_configured
+            - auth0_audience_configured
+            - auth0_client_secret_configured
+          properties:
+            auth0_domain_configured:
+              type: boolean
+            auth0_client_id_configured:
+              type: boolean
+            auth0_audience_configured:
+              type: boolean
+            auth0_client_secret_configured:
+              type: boolean
+    HealthDependenciesResponse:
+      type: object
+      required:
+        - service
+        - auth_backend
+        - issuer
+        - jwks_url
+        - management_audience
+        - management_client_configured
+      properties:
+        service:
+          type: string
+          example: user-auth
+        auth_backend:
+          type: string
+          example: auth0
+        issuer:
+          type: string
+          example: https://dev-lqyjuexwhe1bupvs.us.auth0.com/
+        jwks_url:
+          type: string
+          example: https://dev-lqyjuexwhe1bupvs.us.auth0.com/.well-known/jwks.json
+        management_audience:
+          type: string
+          example: https://dev-lqyjuexwhe1bupvs.us.auth0.com/api/v2/
+        management_client_configured:
+          type: boolean
+    AuthConfigResponse:
+      type: object
+      required: [domain, client_id, audience, issuer]
+      properties:
+        domain:
+          type: string
+          example: dev-lqyjuexwhe1bupvs.us.auth0.com
+        client_id:
+          type: string
+          example: hG5aklxMlkilsmsfF6HjuROKNsivDJLU
+        audience:
+          type: string
+          example: https://user-service
+        issuer:
+          type: string
+          example: https://dev-lqyjuexwhe1bupvs.us.auth0.com/
+    ClaimsResponse:
+      type: object
+      description: Verified Auth0 JWT claims for the current request.
+      additionalProperties: true
+      properties:
+        sub:
+          type: string
+          example: auth0|user-id
+        permissions:
+          type: array
+          items:
+            type: string
+    SelfRegistrationRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        given_name:
+          type: string
+        family_name:
+          type: string
+        connection:
+          type: string
+        user_metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+    RegistrationCompleteRequest:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+        verification_code:
+          type: string
+    MfaEnrollmentRequest:
+      type: object
+      required: [mfa_token]
+      properties:
+        mfa_token:
+          type: string
+        authenticator_type:
+          type: string
+          default: otp
+          description: Auth0 MFA authenticator type, such as otp or recovery-code.
+    MfaChallengeRequest:
+      type: object
+      required: [mfa_token]
+      properties:
+        mfa_token:
+          type: string
+        challenge_type:
+          type: string
+          default: otp
+        authenticator_id:
+          type: string
+    UserAttributeUpdateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        blocked:
+          type: boolean
+        email_verified:
+          type: boolean
+        user_metadata:
+          type: object
+          additionalProperties: true
+        app_metadata:
+          type: object
+          additionalProperties: true
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+        connection_id:
+          type: string
+        result_url:
+          type: string
+    AdminMfaResetRequest:
+      type: object
+      properties:
+        authentication_method_id:
+          type: string
+          description: Optional Auth0 authentication method id. Omit to reset all methods.
+    GroupAssignmentRequest:
+      type: object
+      required: [group_id]
+      properties:
+        group_id:
+          type: string
+    GroupCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+    Auth0User:
+      type: object
+      additionalProperties: true
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+    Auth0Role:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    Auth0ListResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        start:
+          type: integer
+        limit:
+          type: integer
+        length:
+          type: integer
+        total:
+          type: integer
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/Auth0User"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Auth0Role"
+    UnauthorizedError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          example: Missing bearer token
+    ForbiddenError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: object
+          required: [message, missing_permissions]
+          properties:
+            message:
+              type: string
+              example: Insufficient permissions
+            missing_permissions:
+              type: array
+              items:
+                type: string

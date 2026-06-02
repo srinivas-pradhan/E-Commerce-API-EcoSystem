@@ -68,6 +68,9 @@ Created user-service API scopes:
 
 ```text
 read:service_status
+read:health_liveness
+read:health_readiness
+read:health_dependencies
 read:auth_config
 read:profile
 create:registration
@@ -95,8 +98,17 @@ Health/core:
 
 ```text
 GET /                         read:service_status
+GET /health/live              read:health_liveness
+GET /health/ready             read:health_readiness
+GET /health/dependencies      read:health_dependencies
 GET /auth/config              read:auth_config
 GET /me                       read:profile
+```
+
+The canonical OpenAPI-style service document lives at:
+
+```text
+user-service/openapi/user-service.openapi.yaml
 ```
 
 Self-service:
@@ -124,6 +136,35 @@ POST   /admin/groups                                create:groups
 POST   /admin/users/{user_id}/groups                update:groups
 DELETE /admin/users/{user_id}/groups/{group_id}     delete:groups
 ```
+
+Admin list endpoints support pagination:
+
+```text
+page=0
+per_page=25
+```
+
+`GET /admin/users` also supports Auth0 Lucene search fragments:
+
+```text
+query=email:"user@example.com"
+start_query=created_at:[2026-01-01 TO *]
+end_query=created_at:[* TO 2026-02-01]
+```
+
+When multiple query fragments are supplied, the service combines them with `AND` and sends the composed query to Auth0 with `search_engine=v3`.
+
+`GET /admin/groups` maps groups to Auth0 Roles and supports:
+
+```text
+page=0
+per_page=25
+query=admin
+start_query=north
+end_query=america
+```
+
+Auth0 Roles support `name_filter`, so group query fragments are folded into a single role name filter while pagination is preserved.
 
 ## Local Development
 

@@ -14,7 +14,30 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "const requestScopes = {\n  \"Service Status\": \"read:service_status\",\n  \"Auth Config\": \"read:auth_config\",\n  \"Current User\": \"read:profile\",\n  \"Start Registration\": \"create:registration\",\n  \"Complete Registration\": \"complete:registration\",\n  \"Read Profile\": \"read:own_profile\",\n  \"Update Profile\": \"update:own_profile\",\n  \"Enroll MFA\": \"enroll:own_mfa\",\n  \"Challenge MFA\": \"challenge:own_mfa\",\n  \"Delete MFA Enrollment\": \"delete:own_mfa\",\n  \"List Users\": \"read:users\",\n  \"Read User\": \"read:users\",\n  \"Update User Attributes\": \"update:users\",\n  \"Create Password Reset Ticket\": \"reset:passwords\",\n  \"Reset User MFA\": \"reset:mfa\",\n  \"List Groups\": \"read:groups\",\n  \"Create Group\": \"create:groups\",\n  \"Add User To Group\": \"update:groups\",\n  \"Remove User From Group\": \"delete:groups\"\n};",
+          "const requestScopes = {",
+          "    \"Service Status\": \"read:service_status\",",
+          "    \"Health Liveness\": \"read:health_liveness\",",
+          "    \"Health Readiness\": \"read:health_readiness\",",
+          "    \"Health Dependencies\": \"read:health_dependencies\",",
+          "    \"Auth Config\": \"read:auth_config\",",
+          "    \"Current User\": \"read:profile\",",
+          "    \"Start Registration\": \"create:registration\",",
+          "    \"Complete Registration\": \"complete:registration\",",
+          "    \"Read Profile\": \"read:own_profile\",",
+          "    \"Update Profile\": \"update:own_profile\",",
+          "    \"Enroll MFA\": \"enroll:own_mfa\",",
+          "    \"Challenge MFA\": \"challenge:own_mfa\",",
+          "    \"Delete MFA Enrollment\": \"delete:own_mfa\",",
+          "    \"List Users\": \"read:users\",",
+          "    \"Read User\": \"read:users\",",
+          "    \"Update User Attributes\": \"update:users\",",
+          "    \"Create Password Reset Ticket\": \"reset:passwords\",",
+          "    \"Reset User MFA\": \"reset:mfa\",",
+          "    \"List Groups\": \"read:groups\",",
+          "    \"Create Group\": \"create:groups\",",
+          "    \"Add User To Group\": \"update:groups\",",
+          "    \"Remove User From Group\": \"delete:groups\"",
+          "};",
           "",
           "const requiredScope = requestScopes[pm.info.requestName];",
           "if (!requiredScope) {",
@@ -137,6 +160,135 @@
                   "pm.environment.set('access_token_read_service_status', body.access_token);",
                   "pm.environment.set('access_token_read_service_status_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
                   "pm.environment.set('access_token_scope', 'read:service_status');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:health_liveness');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:health_liveness",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:health_liveness\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:health_liveness."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_health_liveness', body.access_token);",
+                  "pm.environment.set('access_token_read_health_liveness_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:health_liveness');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:health_readiness');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:health_readiness",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:health_readiness\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:health_readiness."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_health_readiness', body.access_token);",
+                  "pm.environment.set('access_token_read_health_readiness_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:health_readiness');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:health_dependencies');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:health_dependencies",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:health_dependencies\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:health_dependencies."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_health_dependencies', body.access_token);",
+                  "pm.environment.set('access_token_read_health_dependencies_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:health_dependencies');",
                   "pm.environment.set('access_token', body.access_token);",
                   "pm.execution.setNextRequest('Get token - read:auth_config');"
                 ]
@@ -916,6 +1068,96 @@
           ]
         },
         {
+          "name": "Health Liveness",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_health_liveness}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/health/live",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('health liveness returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health Readiness",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_health_readiness}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/health/ready",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('health readiness returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health Dependencies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_health_dependencies}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/health/dependencies",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('health dependencies returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Auth Config",
           "request": {
             "method": "GET",
@@ -1270,7 +1512,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/admin/users?page=0&per_page=25",
+              "raw": "{{base_url}}/admin/users?page=0&per_page=25&query=email:\"user@example.com\"&start_query=created_at:[2026-01-01 TO *]&end_query=created_at:[* TO 2026-02-01]",
               "host": [
                 "{{base_url}}"
               ],
@@ -1286,6 +1528,21 @@
                 {
                   "key": "per_page",
                   "value": "25"
+                },
+                {
+                  "key": "query",
+                  "value": "email:\"user@example.com\"",
+                  "disabled": true
+                },
+                {
+                  "key": "start_query",
+                  "value": "created_at:[2026-01-01 TO *]",
+                  "disabled": true
+                },
+                {
+                  "key": "end_query",
+                  "value": "created_at:[* TO 2026-02-01]",
+                  "disabled": true
                 }
               ]
             },
@@ -1467,7 +1724,41 @@
                 "type": "text"
               }
             ],
-            "url": "{{base_url}}/admin/groups",
+            "url": {
+              "raw": "{{base_url}}/admin/groups?page=0&per_page=25&query=admin&start_query=north&end_query=america",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "groups"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "per_page",
+                  "value": "25"
+                },
+                {
+                  "key": "query",
+                  "value": "admin",
+                  "disabled": true
+                },
+                {
+                  "key": "start_query",
+                  "value": "north",
+                  "disabled": true
+                },
+                {
+                  "key": "end_query",
+                  "value": "america",
+                  "disabled": true
+                }
+              ]
+            },
             "auth": {
               "type": "noauth"
             }

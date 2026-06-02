@@ -7,6 +7,7 @@ from routers.schemas import (
     AdminMfaResetRequest,
     GroupAssignmentRequest,
     GroupCreateRequest,
+    GroupListQuery,
     PasswordResetRequest,
     UserAttributeUpdateRequest,
     UserListQuery,
@@ -31,14 +32,24 @@ async def list_users(
     page: Annotated[int, Query(ge=0)] = 0,
     per_page: Annotated[int, Query(ge=1, le=100)] = 25,
     query: str | None = None,
+    start_query: str | None = None,
+    end_query: str | None = None,
     claims: dict[str, Any] = UserRead,
 ):
-    UserListQuery(page=page, per_page=per_page, query=query)
+    UserListQuery(
+        page=page,
+        per_page=per_page,
+        query=query,
+        start_query=start_query,
+        end_query=end_query,
+    )
     try:
         return await Auth0ManagementClient().list_users(
             page=page,
             per_page=per_page,
             query=query,
+            start_query=start_query,
+            end_query=end_query,
         )
     except Auth0ClientError as error:
         raise_http_error(error)
@@ -98,9 +109,29 @@ async def reset_user_mfa(
 
 
 @router.get("/groups")
-async def list_groups(claims: dict[str, Any] = GroupRead):
+async def list_groups(
+    page: Annotated[int, Query(ge=0)] = 0,
+    per_page: Annotated[int, Query(ge=1, le=100)] = 25,
+    query: str | None = None,
+    start_query: str | None = None,
+    end_query: str | None = None,
+    claims: dict[str, Any] = GroupRead,
+):
+    GroupListQuery(
+        page=page,
+        per_page=per_page,
+        query=query,
+        start_query=start_query,
+        end_query=end_query,
+    )
     try:
-        return await Auth0ManagementClient().list_roles()
+        return await Auth0ManagementClient().list_roles(
+            page=page,
+            per_page=per_page,
+            query=query,
+            start_query=start_query,
+            end_query=end_query,
+        )
     except Auth0ClientError as error:
         raise_http_error(error)
 
