@@ -91,7 +91,7 @@ delete:groups
 
 All application endpoints require an Auth0 bearer token and the listed scope.
 
-Core:
+Health/core:
 
 ```text
 GET /                         read:service_status
@@ -259,6 +259,7 @@ user-service/
   main.py
   postman/
   routers/
+    health.py
   services/auth0/
   tests/
 ```
