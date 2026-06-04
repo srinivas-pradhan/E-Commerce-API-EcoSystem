@@ -3,7 +3,7 @@
 FastAPI-based e-commerce microservice ecosystem. The current services are:
 
 - [user-service](user-service/README.md)
-- `catalog-service`
+- [catalog-service](catalog-service/README.md)
 - `cart-service`
 - `order-service`
 - `payment-service`
@@ -20,6 +20,19 @@ See [user-service/README.md](user-service/README.md) for:
 - Auth0 configuration
 - required Auth0 scopes
 - endpoint inventory
+- local development commands
+- validation workflow
+
+## Catalog Service
+
+`catalog-service` is the Auth0-protected product catalog, promotion, and inventory-reservation service.
+
+See [catalog-service/README.md](catalog-service/README.md) for:
+
+- catalog Auth0 scopes
+- required test personas
+- product, inventory, promotion, and cart-reservation endpoints
+- Postgres/ORM direction
 - local development commands
 - validation workflow
 

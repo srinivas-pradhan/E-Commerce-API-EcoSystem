@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create user-service API permissions in Auth0.
+"""Create application API permissions in Auth0.
 
 Required environment variables:
   AUTH0_DOMAIN
@@ -62,6 +62,22 @@ USER_SERVICE_SCOPES = {
     "delete:permissions": "Delete API permissions as an administrator",
     "assign:permissions": "Assign API permissions to users as an administrator",
     "unassign:permissions": "Remove API permissions from users as an administrator",
+}
+
+CATALOG_SERVICE_SCOPES = {
+    "read:catalog_status": "Read catalog service metadata",
+    "read:catalog_health": "Read catalog service health checks",
+    "read:products": "Read released catalog products",
+    "reserve:cart_inventory": "Reserve product inventory for cart checkout",
+    "read:inventory": "Read catalog inventory counts and operational state",
+    "manage:catalog": "Create, update, release, feature, and archive catalog products",
+    "manage:inventory": "Update catalog inventory counts and inventory settings",
+    "manage:promotions": "Create and update product promotions and sales",
+}
+
+APPLICATION_SCOPES = {
+    **USER_SERVICE_SCOPES,
+    **CATALOG_SERVICE_SCOPES,
 }
 
 
@@ -226,7 +242,7 @@ def merge_scopes(existing_scopes: list[dict[str, str]]) -> tuple[list[dict[str, 
     by_value = {scope["value"]: scope for scope in existing_scopes}
     added = []
 
-    for value, description in USER_SERVICE_SCOPES.items():
+    for value, description in APPLICATION_SCOPES.items():
         if value not in by_value:
             by_value[value] = {"value": value, "description": description}
             added.append(value)
@@ -291,7 +307,7 @@ def create_client_grant(config: Auth0Config, token: str, client_id: str) -> dict
         payload={
             "client_id": client_id,
             "audience": config.audience,
-            "scope": list(USER_SERVICE_SCOPES),
+            "scope": list(APPLICATION_SCOPES),
             "subject_type": "client",
         },
     )
@@ -303,7 +319,7 @@ def update_client_grant(
     grant: dict[str, Any],
 ) -> list[str]:
     existing_scopes = set(grant.get("scope", []))
-    missing_scopes = [scope for scope in USER_SERVICE_SCOPES if scope not in existing_scopes]
+    missing_scopes = [scope for scope in APPLICATION_SCOPES if scope not in existing_scopes]
 
     if not missing_scopes:
         return []
@@ -330,7 +346,7 @@ def ensure_client_grant(config: Auth0Config, token: str) -> None:
         create_client_grant(config, token, config.grant_client_id)
         print(
             f"Created client grant for {config.grant_client_id} "
-            f"with {len(USER_SERVICE_SCOPES)} scope(s)."
+            f"with {len(APPLICATION_SCOPES)} scope(s)."
         )
         return
 
@@ -338,7 +354,7 @@ def ensure_client_grant(config: Auth0Config, token: str) -> None:
     if not added_scopes:
         print(
             f"Client grant for {config.grant_client_id} already has "
-            f"all {len(USER_SERVICE_SCOPES)} user-service scope(s)."
+            f"all {len(APPLICATION_SCOPES)} application scope(s)."
         )
         return
 
@@ -354,7 +370,7 @@ def main() -> int:
     merged_scopes, added = merge_scopes(resource_server.get("scopes", []))
 
     if not added:
-        print(f"All {len(USER_SERVICE_SCOPES)} user-service scopes already exist.")
+        print(f"All {len(APPLICATION_SCOPES)} application scopes already exist.")
     else:
         update_resource_server_scopes(config, token, resource_server, merged_scopes)
         print(f"Created {len(added)} scope(s) for audience {config.audience}:")
