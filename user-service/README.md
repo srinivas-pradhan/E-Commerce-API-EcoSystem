@@ -90,6 +90,9 @@ read:groups
 create:groups
 update:groups
 delete:groups
+create:permissions
+read:permissions
+assign:permissions
 ```
 
 ## Endpoints
@@ -225,9 +228,23 @@ POST   /admin/users/{user_id}/password-reset        reset:passwords
 POST   /admin/users/{user_id}/mfa/reset             reset:mfa
 GET    /admin/groups                                read:groups
 POST   /admin/groups                                create:groups
+POST   /admin/permissions                           create:permissions
+GET    /admin/users/{user_id}/permissions           read:permissions
+POST   /admin/users/{user_id}/permissions           assign:permissions
 POST   /admin/users/{user_id}/groups                update:groups
 DELETE /admin/users/{user_id}/groups/{group_id}     delete:groups
 ```
+
+Permission admin Auth0 upstream calls:
+
+```text
+POST /admin/permissions                 GET   https://{AUTH0_DOMAIN}/api/v2/resource-servers?identifier={AUTH0_AUDIENCE}
+POST /admin/permissions                 PATCH https://{AUTH0_DOMAIN}/api/v2/resource-servers/{resource_server_id}
+GET  /admin/users/{user_id}/permissions GET   https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions
+POST /admin/users/{user_id}/permissions POST  https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions
+```
+
+`POST /admin/permissions` adds a scope to the Auth0 API identified by `AUTH0_AUDIENCE`. `POST /admin/users/{user_id}/permissions` assigns one or more of those API permissions directly to a user. `GET /admin/users/{user_id}/permissions` is intended for trusted machine-to-machine callers that need to authorize object-level access for a user, optionally with local caching.
 
 Admin list endpoints support pagination:
 

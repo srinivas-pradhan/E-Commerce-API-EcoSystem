@@ -191,6 +191,164 @@ class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_create_api_permission_patches_resource_server_scopes(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            if method == "GET":
+                return [
+                    {
+                        "id": "api|user-service",
+                        "identifier": "https://user-service",
+                        "scopes": [{"value": "read:users", "description": "Read users"}],
+                    }
+                ]
+            return {"id": "api|user-service", "scopes": json["scopes"]}
+
+        client.management_request = fake_management_request
+
+        result = await client.create_api_permission(
+            value="read:orders",
+            description="Read order resources",
+            audience="https://user-service",
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "id": "api|user-service",
+                "scopes": [
+                    {"value": "read:users", "description": "Read users"},
+                    {"value": "read:orders", "description": "Read order resources"},
+                ],
+            },
+        )
+        self.assertEqual(
+            calls,
+            [
+                (
+                    "GET",
+                    "/resource-servers",
+                    None,
+                    {"identifier": "https://user-service"},
+                ),
+                (
+                    "PATCH",
+                    "/resource-servers/api%7Cuser-service",
+                    {
+                        "scopes": [
+                            {"value": "read:users", "description": "Read users"},
+                            {"value": "read:orders", "description": "Read order resources"},
+                        ]
+                    },
+                    None,
+                ),
+            ],
+        )
+
+    async def test_create_api_permission_is_idempotent_for_existing_scope(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            if method == "GET":
+                return [
+                    {
+                        "id": "api|user-service",
+                        "identifier": "https://user-service",
+                        "scopes": [{"value": "read:orders", "description": "Read order resources"}],
+                    }
+                ]
+            return {"id": "api|user-service", "scopes": json["scopes"]}
+
+        client.management_request = fake_management_request
+
+        await client.create_api_permission(
+            value="read:orders",
+            description="Read order resources",
+            audience="https://user-service",
+        )
+
+        self.assertEqual(
+            calls[-1],
+            (
+                "PATCH",
+                "/resource-servers/api%7Cuser-service",
+                {"scopes": [{"value": "read:orders", "description": "Read order resources"}]},
+                None,
+            ),
+        )
+
+    async def test_assign_permissions_to_user_uses_user_permissions_endpoint(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+
+        client.management_request = fake_management_request
+
+        await client.assign_permissions_to_user(
+            "auth0|abc",
+            ["read:orders", "update:orders"],
+            resource_server_identifier="https://orders",
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                (
+                    "POST",
+                    "/users/auth0%7Cabc/permissions",
+                    {
+                        "permissions": [
+                            {
+                                "permission_name": "read:orders",
+                                "resource_server_identifier": "https://orders",
+                            },
+                            {
+                                "permission_name": "update:orders",
+                                "resource_server_identifier": "https://orders",
+                            },
+                        ]
+                    },
+                    None,
+                )
+            ],
+        )
+
+    async def test_list_user_permissions_uses_user_permissions_endpoint(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            return {"permissions": []}
+
+        client.management_request = fake_management_request
+
+        result = await client.list_user_permissions("auth0|abc", page=2, per_page=10)
+
+        self.assertEqual(result, {"permissions": []})
+        self.assertEqual(
+            calls,
+            [
+                (
+                    "GET",
+                    "/users/auth0%7Cabc/permissions",
+                    None,
+                    {
+                        "page": 2,
+                        "per_page": 10,
+                        "include_totals": "true",
+                    },
+                )
+            ],
+        )
+
     async def test_reset_user_mfa_deletes_all_methods(self):
         client = Auth0ManagementClient()
         deleted = []

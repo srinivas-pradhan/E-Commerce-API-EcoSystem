@@ -548,6 +548,82 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "502":
           $ref: "#/components/responses/Auth0Error"
+  /admin/permissions:
+    post:
+      tags: [user-admin]
+      summary: Create API permission
+      operationId: createPermission
+      x-required-permission: create:permissions
+      security:
+        - bearerAuth: ["create:permissions"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCreateRequest"
+      responses:
+        "201":
+          description: Updated Auth0 resource server with API scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0ResourceServer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/permissions:
+    get:
+      tags: [user-admin]
+      summary: List user permissions
+      operationId: listUserPermissions
+      x-required-permission: read:permissions
+      security:
+        - bearerAuth: ["read:permissions"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Auth0 user permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0UserPermissionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+    post:
+      tags: [user-admin]
+      summary: Assign permissions to user
+      operationId: assignPermissionsToUser
+      x-required-permission: assign:permissions
+      security:
+        - bearerAuth: ["assign:permissions"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPermissionAssignmentRequest"
+      responses:
+        "204":
+          description: Permissions assigned to user.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
   /admin/users/{user_id}/groups:
     post:
       tags: [user-admin]
@@ -889,6 +965,30 @@ components:
           minLength: 1
         description:
           type: string
+    PermissionCreateRequest:
+      type: object
+      required: [value, description]
+      properties:
+        value:
+          type: string
+          minLength: 1
+          example: read:orders
+        description:
+          type: string
+          minLength: 1
+          example: Read order resources
+    UserPermissionAssignmentRequest:
+      type: object
+      required: [permissions]
+      properties:
+        permissions:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          example:
+            - read:orders
+            - update:orders
     Auth0User:
       type: object
       additionalProperties: true
@@ -908,6 +1008,45 @@ components:
           type: string
         description:
           type: string
+    Auth0ResourceServer:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        identifier:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+              description:
+                type: string
+    Auth0UserPermissionsResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        permissions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              permission_name:
+                type: string
+              resource_server_identifier:
+                type: string
+              description:
+                type: string
+        total:
+          type: integer
+        start:
+          type: integer
+        limit:
+          type: integer
     Auth0AuthenticationMethod:
       type: object
       additionalProperties: true

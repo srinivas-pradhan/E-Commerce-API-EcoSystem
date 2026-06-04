@@ -54,6 +54,9 @@ USER_SERVICE_SCOPES = {
     "create:groups": "Create groups as an administrator",
     "update:groups": "Update group memberships as an administrator",
     "delete:groups": "Delete groups or group memberships as an administrator",
+    "create:permissions": "Create API permissions as an administrator",
+    "read:permissions": "Read user API permissions as an administrator or trusted service",
+    "assign:permissions": "Assign API permissions to users as an administrator",
 }
 
 

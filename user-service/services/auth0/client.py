@@ -230,6 +230,81 @@ class Auth0ManagementClient(Auth0BaseClient):
             json={"name": name, "description": description or ""},
         )
 
+    async def get_resource_server_by_identifier(self, identifier: str) -> dict[str, Any]:
+        resource_servers = await self.management_request(
+            "GET",
+            "/resource-servers",
+            params={"identifier": identifier},
+        )
+        for resource_server in resource_servers:
+            if resource_server.get("identifier") == identifier:
+                return resource_server
+
+        raise Auth0ClientError(
+            status.HTTP_404_NOT_FOUND,
+            {"message": f"Auth0 resource server not found for identifier {identifier}"},
+        )
+
+    async def create_api_permission(
+        self,
+        *,
+        value: str,
+        description: str,
+        audience: str | None = None,
+    ) -> dict[str, Any]:
+        resource_server = await self.get_resource_server_by_identifier(audience or settings.auth0_audience)
+        scopes = list(resource_server.get("scopes", []))
+
+        if not any(scope.get("value") == value for scope in scopes):
+            scopes.append({"value": value, "description": description})
+
+        resource_server_id = self.path_segment(resource_server["id"])
+        return await self.management_request(
+            "PATCH",
+            f"/resource-servers/{resource_server_id}",
+            json={"scopes": scopes},
+        )
+
+    async def assign_permissions_to_user(
+        self,
+        user_id: str,
+        permissions: list[str],
+        *,
+        resource_server_identifier: str | None = None,
+    ) -> None:
+        await self.management_request(
+            "POST",
+            f"/users/{self.path_segment(user_id)}/permissions",
+            json={
+                "permissions": [
+                    {
+                        "permission_name": permission,
+                        "resource_server_identifier": (
+                            resource_server_identifier or settings.auth0_audience
+                        ),
+                    }
+                    for permission in permissions
+                ]
+            },
+        )
+
+    async def list_user_permissions(
+        self,
+        user_id: str,
+        *,
+        page: int = 0,
+        per_page: int = 25,
+    ) -> Any:
+        return await self.management_request(
+            "GET",
+            f"/users/{self.path_segment(user_id)}/permissions",
+            params={
+                "page": page,
+                "per_page": per_page,
+                "include_totals": "true",
+            },
+        )
+
     async def assign_roles_to_user(self, user_id: str, role_ids: list[str]) -> None:
         await self.management_request(
             "POST",

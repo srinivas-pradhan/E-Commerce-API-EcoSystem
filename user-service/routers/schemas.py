@@ -108,3 +108,12 @@ class GroupAssignmentRequest(BaseModel):
 class GroupCreateRequest(BaseModel):
     name: str = Field(min_length=1)
     description: str | None = None
+
+
+class PermissionCreateRequest(BaseModel):
+    value: str = Field(min_length=1, description="Permission/scope value, such as read:orders.")
+    description: str = Field(min_length=1)
+
+
+class UserPermissionAssignmentRequest(BaseModel):
+    permissions: list[str] = Field(min_length=1, description="Permission/scope values to assign to the user.")

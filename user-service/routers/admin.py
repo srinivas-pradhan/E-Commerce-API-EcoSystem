@@ -9,8 +9,10 @@ from routers.schemas import (
     GroupCreateRequest,
     GroupListQuery,
     PasswordResetRequest,
+    PermissionCreateRequest,
     UserAttributeUpdateRequest,
     UserListQuery,
+    UserPermissionAssignmentRequest,
 )
 from services.auth0.client import Auth0ClientError, Auth0ManagementClient, raise_http_error
 
@@ -25,6 +27,9 @@ GroupRead = Depends(require_permissions("read:groups"))
 GroupCreate = Depends(require_permissions("create:groups"))
 GroupUpdate = Depends(require_permissions("update:groups"))
 GroupDelete = Depends(require_permissions("delete:groups"))
+PermissionCreate = Depends(require_permissions("create:permissions"))
+PermissionRead = Depends(require_permissions("read:permissions"))
+PermissionAssign = Depends(require_permissions("assign:permissions"))
 
 
 @router.get("/users")
@@ -142,6 +147,49 @@ async def create_group(payload: GroupCreateRequest, claims: dict[str, Any] = Gro
         return await Auth0ManagementClient().create_role(
             name=payload.name,
             description=payload.description,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
+
+
+@router.post("/permissions", status_code=status.HTTP_201_CREATED)
+async def create_permission(payload: PermissionCreateRequest, claims: dict[str, Any] = PermissionCreate):
+    try:
+        return await Auth0ManagementClient().create_api_permission(
+            value=payload.value,
+            description=payload.description,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
+
+
+@router.post("/users/{user_id}/permissions", status_code=status.HTTP_204_NO_CONTENT)
+async def assign_permissions_to_user(
+    user_id: str,
+    payload: UserPermissionAssignmentRequest,
+    claims: dict[str, Any] = PermissionAssign,
+):
+    try:
+        await Auth0ManagementClient().assign_permissions_to_user(
+            user_id,
+            payload.permissions,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
+
+
+@router.get("/users/{user_id}/permissions")
+async def list_user_permissions(
+    user_id: str,
+    page: Annotated[int, Query(ge=0)] = 0,
+    per_page: Annotated[int, Query(ge=1, le=100)] = 25,
+    claims: dict[str, Any] = PermissionRead,
+):
+    try:
+        return await Auth0ManagementClient().list_user_permissions(
+            user_id,
+            page=page,
+            per_page=per_page,
         )
     except Auth0ClientError as error:
         raise_http_error(error)

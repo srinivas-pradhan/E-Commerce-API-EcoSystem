@@ -40,6 +40,9 @@
           "    \"Reset User MFA\": \"reset:mfa\",",
           "    \"List Groups\": \"read:groups\",",
           "    \"Create Group\": \"create:groups\",",
+          "    \"Create Permission\": \"create:permissions\",",
+          "    \"List User Permissions\": \"read:permissions\",",
+          "    \"Assign Permissions To User\": \"assign:permissions\",",
           "    \"Add User To Group\": \"update:groups\",",
           "    \"Remove User From Group\": \"delete:groups\"",
           "};",
@@ -136,6 +139,16 @@
     {
       "key": "mfa_phone_number",
       "value": "+14155550100",
+      "type": "string"
+    },
+    {
+      "key": "permission_value",
+      "value": "read:orders",
+      "type": "string"
+    },
+    {
+      "key": "permission_description",
+      "value": "Read order resources",
       "type": "string"
     }
   ],
@@ -1127,6 +1140,135 @@
                   "pm.environment.set('access_token_delete_groups_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
                   "pm.environment.set('access_token_scope', 'delete:groups');",
                   "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - create:permissions');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - create:permissions",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"create:permissions\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope create:permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_create_permissions', body.access_token);",
+                  "pm.environment.set('access_token_create_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'create:permissions');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:permissions');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:permissions",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:permissions\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_permissions', body.access_token);",
+                  "pm.environment.set('access_token_read_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:permissions');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - assign:permissions');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - assign:permissions",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"assign:permissions\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope assign:permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_assign_permissions', body.access_token);",
+                  "pm.environment.set('access_token_assign_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'assign:permissions');",
+                  "pm.environment.set('access_token', body.access_token);",
                   "pm.execution.setNextRequest('Service Status');"
                 ]
               }
@@ -2090,6 +2232,112 @@
                   "  const body = pm.response.json();",
                   "  if (body.id) { pm.collectionVariables.set('group_id', body.id); }",
                   "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Permission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_create_permissions}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"{{permission_value}}\",\n  \"description\": \"{{permission_description}}\"\n}"
+            },
+            "url": "{{base_url}}/admin/permissions",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('create permission returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 401, 403, 409, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List User Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_permissions}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/users/{{user_id}}/permissions?page=0&per_page=25",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list user permissions returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assign Permissions To User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_assign_permissions}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissions\": [\n    \"{{permission_value}}\"\n  ]\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/permissions",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('assign permissions to user returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 422, 502]);",
+                  "});"
                 ]
               }
             }
