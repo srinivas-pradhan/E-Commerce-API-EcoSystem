@@ -12,6 +12,8 @@ class Settings(BaseSettings):
         description="Auth0 API audience. Defaults to the configured client id.",
     )
     auth0_algorithms: list[str] = ["RS256"]
+    permission_cache_ttl_seconds: int = Field(default=60, ge=0)
+    user_delete_workflow_retention_days: int = Field(default=30, ge=1)
 
     model_config = SettingsConfigDict()
 

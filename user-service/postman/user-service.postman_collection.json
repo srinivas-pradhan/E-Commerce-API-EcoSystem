@@ -36,13 +36,23 @@
           "    \"List Users\": \"read:users\",",
           "    \"Read User\": \"read:users\",",
           "    \"Update User Attributes\": \"update:users\",",
+          "    \"Disable User\": \"disable:users\",",
+          "    \"Start User Delete Workflow\": \"delete:users\",",
           "    \"Create Password Reset Ticket\": \"reset:passwords\",",
           "    \"Reset User MFA\": \"reset:mfa\",",
           "    \"List Groups\": \"read:groups\",",
           "    \"Create Group\": \"create:groups\",",
+          "    \"Read Group\": \"read:groups\",",
+          "    \"Update Group\": \"update:groups\",",
+          "    \"Delete Group\": \"delete:groups\",",
+          "    \"List Group Users\": \"read:groups\",",
+          "    \"List User Groups\": \"read:groups\",",
           "    \"Create Permission\": \"create:permissions\",",
+          "    \"Update Permission\": \"update:permissions\",",
+          "    \"Delete Permission\": \"delete:permissions\",",
           "    \"List User Permissions\": \"read:permissions\",",
           "    \"Assign Permissions To User\": \"assign:permissions\",",
+          "    \"Remove Permissions From User\": \"unassign:permissions\",",
           "    \"Add User To Group\": \"update:groups\",",
           "    \"Remove User From Group\": \"delete:groups\"",
           "};",
@@ -149,6 +159,11 @@
     {
       "key": "permission_description",
       "value": "Read order resources",
+      "type": "string"
+    },
+    {
+      "key": "permission_description_updated",
+      "value": "Updated read order resources",
       "type": "string"
     }
   ],
@@ -882,6 +897,88 @@
                   "pm.environment.set('access_token_update_users_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
                   "pm.environment.set('access_token_scope', 'update:users');",
                   "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - disable:users');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - disable:users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"disable:users\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope disable:users.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Auth0 token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.access_token) {",
+                  "  pm.environment.set('access_token_disable_users', body.access_token);",
+                  "  pm.environment.set('access_token_disable_users_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "  pm.environment.set('access_token_scope', 'disable:users');",
+                  "}",
+                  "pm.execution.setNextRequest('Get token - delete:users');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - delete:users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"delete:users\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope delete:users.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Auth0 token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.access_token) {",
+                  "  pm.environment.set('access_token_delete_users', body.access_token);",
+                  "  pm.environment.set('access_token_delete_users_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "  pm.environment.set('access_token_scope', 'delete:users');",
+                  "}",
                   "pm.execution.setNextRequest('Get token - reset:passwords');"
                 ]
               }
@@ -1226,6 +1323,92 @@
                   "pm.environment.set('access_token_read_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
                   "pm.environment.set('access_token_scope', 'read:permissions');",
                   "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - update:permissions');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - update:permissions",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"update:permissions\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope update:permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_update_permissions', body.access_token);",
+                  "pm.environment.set('access_token_update_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'update:permissions');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - delete:permissions');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - delete:permissions",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"delete:permissions\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope delete:permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_delete_permissions', body.access_token);",
+                  "pm.environment.set('access_token_delete_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'delete:permissions');",
+                  "pm.environment.set('access_token', body.access_token);",
                   "pm.execution.setNextRequest('Get token - assign:permissions');"
                 ]
               }
@@ -1268,6 +1451,49 @@
                   "pm.environment.set('access_token_assign_permissions', body.access_token);",
                   "pm.environment.set('access_token_assign_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
                   "pm.environment.set('access_token_scope', 'assign:permissions');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - unassign:permissions');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - unassign:permissions",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"unassign:permissions\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope unassign:permissions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_unassign_permissions', body.access_token);",
+                  "pm.environment.set('access_token_unassign_permissions_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'unassign:permissions');",
                   "pm.environment.set('access_token', body.access_token);",
                   "pm.execution.setNextRequest('Service Status');"
                 ]
@@ -2051,6 +2277,82 @@
           ]
         },
         {
+          "name": "Disable User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_disable_users}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Disabled from Postman workflow test\"\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/disable",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('disable user returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start User Delete Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_delete_users}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Delete workflow started from Postman\",\n  \"retention_days\": 30\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/delete-workflow",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('start user delete workflow returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create Password Reset Ticket",
           "request": {
             "method": "POST",
@@ -2238,6 +2540,134 @@
           ]
         },
         {
+          "name": "Read Group",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_groups}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/groups/{{group_id}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('read group returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Group",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_update_groups}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated from Postman\"\n}"
+            },
+            "url": "{{base_url}}/admin/groups/{{group_id}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('update group returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Group",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_delete_groups}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/groups/{{group_id}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('delete group returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Group Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_groups}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/groups/{{group_id}}/users?page=0&per_page=25",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list group users returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create Permission",
           "request": {
             "method": "POST",
@@ -2269,6 +2699,74 @@
                 "exec": [
                   "pm.test('create permission returns expected status', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 401, 403, 409, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Permission",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_update_permissions}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"{{permission_description_updated}}\"\n}"
+            },
+            "url": "{{base_url}}/admin/permissions/{{permission_value}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('update permission returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Permission",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_delete_permissions}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/permissions/{{permission_value}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('delete permission returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 502]);",
                   "});"
                 ]
               }
@@ -2344,6 +2842,44 @@
           ]
         },
         {
+          "name": "Remove Permissions From User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_unassign_permissions}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissions\": [\n    \"{{permission_value}}\"\n  ]\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/permissions",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('remove permissions from user returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Add User To Group",
           "request": {
             "method": "POST",
@@ -2375,6 +2911,36 @@
                 "exec": [
                   "pm.test('add user to group returns expected status', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List User Groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_groups}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/admin/users/{{user_id}}/groups?page=0&per_page=25",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list user groups returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
                   "});"
                 ]
               }

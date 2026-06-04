@@ -1,4 +1,5 @@
 from typing import Any
+from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
 import httpx
@@ -164,6 +165,56 @@ class Auth0ManagementClient(Auth0BaseClient):
             json=payload,
         )
 
+    async def disable_user(
+        self,
+        user_id: str,
+        *,
+        reason: str | None = None,
+        actor: str | None = None,
+    ) -> dict[str, Any]:
+        disabled_at = datetime.now(UTC).isoformat()
+        return await self.update_user(
+            user_id,
+            {
+                "blocked": True,
+                "app_metadata": {
+                    "user_service_workflow": {
+                        "state": "disabled",
+                        "disabled_at": disabled_at,
+                        "disabled_by": actor,
+                        "reason": reason,
+                    }
+                },
+            },
+        )
+
+    async def start_user_delete_workflow(
+        self,
+        user_id: str,
+        *,
+        retention_days: int,
+        reason: str | None = None,
+        actor: str | None = None,
+    ) -> dict[str, Any]:
+        requested_at = datetime.now(UTC)
+        delete_after = requested_at + timedelta(days=retention_days)
+        return await self.update_user(
+            user_id,
+            {
+                "blocked": True,
+                "app_metadata": {
+                    "user_service_workflow": {
+                        "state": "delete_requested",
+                        "delete_requested_at": requested_at.isoformat(),
+                        "delete_after": delete_after.isoformat(),
+                        "delete_requested_by": actor,
+                        "retention_days": retention_days,
+                        "reason": reason,
+                    }
+                },
+            },
+        )
+
     async def complete_registration(self, user_id: str) -> dict[str, Any]:
         return await self.update_user(
             user_id,
@@ -230,6 +281,53 @@ class Auth0ManagementClient(Auth0BaseClient):
             json={"name": name, "description": description or ""},
         )
 
+    async def get_role(self, role_id: str) -> dict[str, Any]:
+        return await self.management_request("GET", f"/roles/{self.path_segment(role_id)}")
+
+    async def update_role(self, role_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return await self.management_request(
+            "PATCH",
+            f"/roles/{self.path_segment(role_id)}",
+            json=payload,
+        )
+
+    async def delete_role(self, role_id: str) -> None:
+        await self.management_request("DELETE", f"/roles/{self.path_segment(role_id)}")
+
+    async def list_role_users(
+        self,
+        role_id: str,
+        *,
+        page: int = 0,
+        per_page: int = 25,
+    ) -> Any:
+        return await self.management_request(
+            "GET",
+            f"/roles/{self.path_segment(role_id)}/users",
+            params={
+                "page": page,
+                "per_page": per_page,
+                "include_totals": "true",
+            },
+        )
+
+    async def list_user_roles(
+        self,
+        user_id: str,
+        *,
+        page: int = 0,
+        per_page: int = 25,
+    ) -> Any:
+        return await self.management_request(
+            "GET",
+            f"/users/{self.path_segment(user_id)}/roles",
+            params={
+                "page": page,
+                "per_page": per_page,
+                "include_totals": "true",
+            },
+        )
+
     async def get_resource_server_by_identifier(self, identifier: str) -> dict[str, Any]:
         resource_servers = await self.management_request(
             "GET",
@@ -263,6 +361,59 @@ class Auth0ManagementClient(Auth0BaseClient):
             "PATCH",
             f"/resource-servers/{resource_server_id}",
             json={"scopes": scopes},
+        )
+
+    async def update_api_permission(
+        self,
+        *,
+        value: str,
+        description: str,
+        audience: str | None = None,
+    ) -> dict[str, Any]:
+        resource_server = await self.get_resource_server_by_identifier(audience or settings.auth0_audience)
+        scopes = list(resource_server.get("scopes", []))
+        found = False
+
+        for scope in scopes:
+            if scope.get("value") == value:
+                scope["description"] = description
+                found = True
+                break
+
+        if not found:
+            raise Auth0ClientError(
+                status.HTTP_404_NOT_FOUND,
+                {"message": f"Auth0 API permission not found: {value}"},
+            )
+
+        resource_server_id = self.path_segment(resource_server["id"])
+        return await self.management_request(
+            "PATCH",
+            f"/resource-servers/{resource_server_id}",
+            json={"scopes": scopes},
+        )
+
+    async def delete_api_permission(
+        self,
+        *,
+        value: str,
+        audience: str | None = None,
+    ) -> dict[str, Any]:
+        resource_server = await self.get_resource_server_by_identifier(audience or settings.auth0_audience)
+        scopes = list(resource_server.get("scopes", []))
+        filtered_scopes = [scope for scope in scopes if scope.get("value") != value]
+
+        if len(filtered_scopes) == len(scopes):
+            raise Auth0ClientError(
+                status.HTTP_404_NOT_FOUND,
+                {"message": f"Auth0 API permission not found: {value}"},
+            )
+
+        resource_server_id = self.path_segment(resource_server["id"])
+        return await self.management_request(
+            "PATCH",
+            f"/resource-servers/{resource_server_id}",
+            json={"scopes": filtered_scopes},
         )
 
     async def assign_permissions_to_user(
@@ -302,6 +453,29 @@ class Auth0ManagementClient(Auth0BaseClient):
                 "page": page,
                 "per_page": per_page,
                 "include_totals": "true",
+            },
+        )
+
+    async def remove_permissions_from_user(
+        self,
+        user_id: str,
+        permissions: list[str],
+        *,
+        resource_server_identifier: str | None = None,
+    ) -> None:
+        await self.management_request(
+            "DELETE",
+            f"/users/{self.path_segment(user_id)}/permissions",
+            json={
+                "permissions": [
+                    {
+                        "permission_name": permission,
+                        "resource_server_identifier": (
+                            resource_server_identifier or settings.auth0_audience
+                        ),
+                    }
+                    for permission in permissions
+                ]
             },
         )
 

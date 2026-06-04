@@ -21,6 +21,8 @@ AUTH0_CLIENT_ID=hG5aklxMlkilsmsfF6HjuROKNsivDJLU
 AUTH0_CLIENT_SECRET=...
 AUTH0_AUDIENCE=https://user-service
 AUTH0_CONNECTION=Username-Password-Authentication
+PERMISSION_CACHE_TTL_SECONDS=60
+USER_DELETE_WORKFLOW_RETENTION_DAYS=30
 ```
 
 `user-service/.env` is intentionally ignored by Git. Do not commit secrets.
@@ -92,6 +94,8 @@ challenge:own_mfa
 delete:own_mfa
 read:users
 update:users
+disable:users
+delete:users
 reset:passwords
 reset:mfa
 read:groups
@@ -100,7 +104,10 @@ update:groups
 delete:groups
 create:permissions
 read:permissions
+update:permissions
+delete:permissions
 assign:permissions
+unassign:permissions
 ```
 
 ## Endpoints
@@ -232,13 +239,23 @@ Admin:
 GET    /admin/users                                 read:users
 GET    /admin/users/{user_id}                       read:users
 PATCH  /admin/users/{user_id}/attributes            update:users
+POST   /admin/users/{user_id}/disable               disable:users
+POST   /admin/users/{user_id}/delete-workflow       delete:users
 POST   /admin/users/{user_id}/password-reset        reset:passwords
 POST   /admin/users/{user_id}/mfa/reset             reset:mfa
 GET    /admin/groups                                read:groups
 POST   /admin/groups                                create:groups
+GET    /admin/groups/{group_id}                     read:groups
+PATCH  /admin/groups/{group_id}                     update:groups
+DELETE /admin/groups/{group_id}                     delete:groups
+GET    /admin/groups/{group_id}/users               read:groups
 POST   /admin/permissions                           create:permissions
+PATCH  /admin/permissions/{permission}              update:permissions
+DELETE /admin/permissions/{permission}              delete:permissions
 GET    /admin/users/{user_id}/permissions           read:permissions
 POST   /admin/users/{user_id}/permissions           assign:permissions
+DELETE /admin/users/{user_id}/permissions           unassign:permissions
+GET    /admin/users/{user_id}/groups                read:groups
 POST   /admin/users/{user_id}/groups                update:groups
 DELETE /admin/users/{user_id}/groups/{group_id}     delete:groups
 ```
@@ -248,11 +265,43 @@ Permission admin Auth0 upstream calls:
 ```text
 POST /admin/permissions                 GET   https://{AUTH0_DOMAIN}/api/v2/resource-servers?identifier={AUTH0_AUDIENCE}
 POST /admin/permissions                 PATCH https://{AUTH0_DOMAIN}/api/v2/resource-servers/{resource_server_id}
+PATCH /admin/permissions/{permission}   GET   https://{AUTH0_DOMAIN}/api/v2/resource-servers?identifier={AUTH0_AUDIENCE}
+PATCH /admin/permissions/{permission}   PATCH https://{AUTH0_DOMAIN}/api/v2/resource-servers/{resource_server_id}
+DELETE /admin/permissions/{permission}  GET   https://{AUTH0_DOMAIN}/api/v2/resource-servers?identifier={AUTH0_AUDIENCE}
+DELETE /admin/permissions/{permission}  PATCH https://{AUTH0_DOMAIN}/api/v2/resource-servers/{resource_server_id}
 GET  /admin/users/{user_id}/permissions GET   https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions
 POST /admin/users/{user_id}/permissions POST  https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions
+DELETE /admin/users/{user_id}/permissions DELETE https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions
 ```
 
-`POST /admin/permissions` adds a scope to the Auth0 API identified by `AUTH0_AUDIENCE`. `POST /admin/users/{user_id}/permissions` assigns one or more of those API permissions directly to a user. `GET /admin/users/{user_id}/permissions` is intended for trusted machine-to-machine callers that need to authorize object-level access for a user, optionally with local caching.
+`POST /admin/permissions` adds a scope to the Auth0 API identified by `AUTH0_AUDIENCE`. `PATCH /admin/permissions/{permission}` updates an existing scope description. `DELETE /admin/permissions/{permission}` removes a scope from the Auth0 API. `POST /admin/users/{user_id}/permissions` assigns one or more of those API permissions directly to a user. `DELETE /admin/users/{user_id}/permissions` removes direct user permissions. `GET /admin/users/{user_id}/permissions` is intended for trusted machine-to-machine callers that need to authorize object-level access for a user, optionally with local caching.
+
+Permission reads are cached in-process for `PERMISSION_CACHE_TTL_SECONDS`, defaulting to `60`. Use `use_cache=false` on `GET /admin/users/{user_id}/permissions` when a caller needs a fresh Auth0 read after an external permission change. Assign/remove calls invalidate that user's cached permission pages.
+
+User disable/delete workflow Auth0 upstream calls:
+
+```text
+POST /admin/users/{user_id}/disable         PATCH https://{AUTH0_DOMAIN}/api/v2/users/{user_id}
+POST /admin/users/{user_id}/delete-workflow PATCH https://{AUTH0_DOMAIN}/api/v2/users/{user_id}
+```
+
+`POST /admin/users/{user_id}/disable` blocks the user and records workflow metadata in `app_metadata.user_service_workflow`. `POST /admin/users/{user_id}/delete-workflow` blocks the user, records delete-request metadata, and stores a `delete_after` timestamp based on `USER_DELETE_WORKFLOW_RETENTION_DAYS`, defaulting to `30`. This service intentionally does not expose a raw user delete endpoint.
+
+Group admin Auth0 upstream calls:
+
+```text
+GET    /admin/groups                                GET    https://{AUTH0_DOMAIN}/api/v2/roles
+POST   /admin/groups                                POST   https://{AUTH0_DOMAIN}/api/v2/roles
+GET    /admin/groups/{group_id}                     GET    https://{AUTH0_DOMAIN}/api/v2/roles/{group_id}
+PATCH  /admin/groups/{group_id}                     PATCH  https://{AUTH0_DOMAIN}/api/v2/roles/{group_id}
+DELETE /admin/groups/{group_id}                     DELETE https://{AUTH0_DOMAIN}/api/v2/roles/{group_id}
+GET    /admin/groups/{group_id}/users               GET    https://{AUTH0_DOMAIN}/api/v2/roles/{group_id}/users
+GET    /admin/users/{user_id}/groups                GET    https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/roles
+POST   /admin/users/{user_id}/groups                POST   https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/roles
+DELETE /admin/users/{user_id}/groups/{group_id}     DELETE https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/roles
+```
+
+Application groups are represented as Auth0 Roles.
 
 Admin list endpoints support pagination:
 
@@ -402,13 +451,30 @@ challenge:own_mfa
 delete:own_mfa
 read:users
 update:users
+disable:users
+delete:users
 reset:passwords
 reset:mfa
 read:groups
 create:groups
 update:groups
 delete:groups
+create:permissions
+read:permissions
+update:permissions
+delete:permissions
+assign:permissions
+unassign:permissions
 ```
+
+Optional Auth0 integration checks can be run manually when real tenant credentials are available:
+
+```bash
+cd user-service
+RUN_AUTH0_INTEGRATION_TESTS=true .venv/bin/python -m unittest tests.test_auth0_integration
+```
+
+Set `AUTH0_TEST_USER_ID=auth0|...` to include the optional real-user permission read check. These tests are skipped by default in CI and do not read credential files directly.
 
 ## Layout
 

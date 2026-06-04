@@ -48,6 +48,8 @@ USER_SERVICE_SCOPES = {
     "delete:own_mfa": "Delete own MFA enrollments",
     "read:users": "List and read users as an administrator",
     "update:users": "Update user attributes as an administrator",
+    "disable:users": "Disable users as an administrator",
+    "delete:users": "Start user delete workflows as an administrator",
     "reset:passwords": "Trigger password resets as an administrator",
     "reset:mfa": "Reset user MFA factors as an administrator",
     "read:groups": "List groups as an administrator",
@@ -56,7 +58,10 @@ USER_SERVICE_SCOPES = {
     "delete:groups": "Delete groups or group memberships as an administrator",
     "create:permissions": "Create API permissions as an administrator",
     "read:permissions": "Read user API permissions as an administrator or trusted service",
+    "update:permissions": "Update API permissions as an administrator",
+    "delete:permissions": "Delete API permissions as an administrator",
     "assign:permissions": "Assign API permissions to users as an administrator",
+    "unassign:permissions": "Remove API permissions from users as an administrator",
 }
 
 

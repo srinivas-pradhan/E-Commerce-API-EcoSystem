@@ -435,6 +435,64 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "502":
           $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/disable:
+    post:
+      tags: [user-admin]
+      summary: Disable user
+      operationId: disableUser
+      x-required-permission: disable:users
+      security:
+        - bearerAuth: ["disable:users"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserDisableRequest"
+      responses:
+        "200":
+          description: Auth0 user blocked with user-service workflow metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/users/{user_id}/delete-workflow:
+    post:
+      tags: [user-admin]
+      summary: Start user delete workflow
+      operationId: startUserDeleteWorkflow
+      x-required-permission: delete:users
+      security:
+        - bearerAuth: ["delete:users"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserDeleteWorkflowRequest"
+      responses:
+        "200":
+          description: Auth0 user blocked and marked for delayed delete workflow.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
   /admin/users/{user_id}/password-reset:
     post:
       tags: [user-admin]
@@ -548,6 +606,100 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "502":
           $ref: "#/components/responses/Auth0Error"
+  /admin/groups/{group_id}:
+    get:
+      tags: [user-admin]
+      summary: Read group
+      operationId: readGroup
+      x-required-permission: read:groups
+      security:
+        - bearerAuth: ["read:groups"]
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Auth0 Role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+    patch:
+      tags: [user-admin]
+      summary: Update group
+      operationId: updateGroup
+      x-required-permission: update:groups
+      security:
+        - bearerAuth: ["update:groups"]
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupUpdateRequest"
+      responses:
+        "200":
+          description: Updated Auth0 Role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+    delete:
+      tags: [user-admin]
+      summary: Delete group
+      operationId: deleteGroup
+      x-required-permission: delete:groups
+      security:
+        - bearerAuth: ["delete:groups"]
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "204":
+          description: Group deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /admin/groups/{group_id}/users:
+    get:
+      tags: [user-admin]
+      summary: List group users
+      operationId: listGroupUsers
+      x-required-permission: read:groups
+      security:
+        - bearerAuth: ["read:groups"]
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Auth0 Role users.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0ListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
   /admin/permissions:
     post:
       tags: [user-admin]
@@ -575,6 +727,63 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "502":
           $ref: "#/components/responses/Auth0Error"
+  /admin/permissions/{permission}:
+    patch:
+      tags: [user-admin]
+      summary: Update API permission
+      operationId: updatePermission
+      x-required-permission: update:permissions
+      security:
+        - bearerAuth: ["update:permissions"]
+      parameters:
+        - name: permission
+          in: path
+          required: true
+          schema:
+            type: string
+          example: read:orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionUpdateRequest"
+      responses:
+        "200":
+          description: Updated Auth0 resource server with API scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0ResourceServer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+    delete:
+      tags: [user-admin]
+      summary: Delete API permission
+      operationId: deletePermission
+      x-required-permission: delete:permissions
+      security:
+        - bearerAuth: ["delete:permissions"]
+      parameters:
+        - name: permission
+          in: path
+          required: true
+          schema:
+            type: string
+          example: read:orders
+      responses:
+        "204":
+          description: Permission removed from Auth0 resource server.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
   /admin/users/{user_id}/permissions:
     get:
       tags: [user-admin]
@@ -587,6 +796,7 @@ paths:
         - $ref: "#/components/parameters/UserId"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/UseCache"
       responses:
         "200":
           description: Auth0 user permissions.
@@ -624,7 +834,55 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "502":
           $ref: "#/components/responses/Auth0Error"
+    delete:
+      tags: [user-admin]
+      summary: Remove permissions from user
+      operationId: removePermissionsFromUser
+      x-required-permission: unassign:permissions
+      security:
+        - bearerAuth: ["unassign:permissions"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPermissionAssignmentRequest"
+      responses:
+        "204":
+          description: Permissions removed from user.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
   /admin/users/{user_id}/groups:
+    get:
+      tags: [user-admin]
+      summary: List user groups
+      operationId: listUserGroups
+      x-required-permission: read:groups
+      security:
+        - bearerAuth: ["read:groups"]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: User Auth0 Roles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Auth0ListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
     post:
       tags: [user-admin]
       summary: Add user to group
@@ -710,6 +968,13 @@ components:
       schema:
         type: string
       description: Optional search fragment used as the end bound.
+    UseCache:
+      name: use_cache
+      in: query
+      schema:
+        type: boolean
+        default: true
+      description: Use the service's in-process permission cache when available.
     UserId:
       name: user_id
       in: path
@@ -933,6 +1198,25 @@ components:
         app_metadata:
           type: object
           additionalProperties: true
+    UserDisableRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Optional admin reason stored in Auth0 app_metadata.user_service_workflow.
+          example: Suspicious activity review
+    UserDeleteWorkflowRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Optional admin reason stored in Auth0 app_metadata.user_service_workflow.
+          example: Customer requested account closure
+        retention_days:
+          type: integer
+          minimum: 1
+          description: Optional retention period before external deletion processing may run.
+          example: 30
     PasswordResetRequest:
       type: object
       required: [email]
@@ -965,6 +1249,14 @@ components:
           minLength: 1
         description:
           type: string
+    GroupUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
     PermissionCreateRequest:
       type: object
       required: [value, description]
@@ -977,6 +1269,14 @@ components:
           type: string
           minLength: 1
           example: Read order resources
+    PermissionUpdateRequest:
+      type: object
+      required: [description]
+      properties:
+        description:
+          type: string
+          minLength: 1
+          example: Updated read order resources
     UserPermissionAssignmentRequest:
       type: object
       required: [permissions]

@@ -122,6 +122,35 @@ class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_disable_and_delete_workflow_update_user_metadata(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            return {"user_id": "auth0|abc", **(json or {})}
+
+        client.management_request = fake_management_request
+
+        disabled = await client.disable_user("auth0|abc", reason="policy", actor="auth0|admin")
+        delete_requested = await client.start_user_delete_workflow(
+            "auth0|abc",
+            retention_days=7,
+            reason="requested",
+            actor="auth0|admin",
+        )
+
+        self.assertEqual(disabled["blocked"], True)
+        self.assertEqual(delete_requested["blocked"], True)
+        self.assertEqual(calls[0][0:2], ("PATCH", "/users/auth0%7Cabc"))
+        self.assertEqual(calls[0][2]["app_metadata"]["user_service_workflow"]["state"], "disabled")
+        self.assertEqual(calls[1][0:2], ("PATCH", "/users/auth0%7Cabc"))
+        self.assertEqual(
+            calls[1][2]["app_metadata"]["user_service_workflow"]["state"],
+            "delete_requested",
+        )
+        self.assertEqual(calls[1][2]["app_metadata"]["user_service_workflow"]["retention_days"], 7)
+
     async def test_password_change_ticket_uses_management_ticket_endpoint(self):
         calls = []
         client = Auth0ManagementClient()
@@ -188,6 +217,43 @@ class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
                         "name_filter": "admin north america",
                     },
                 )
+            ],
+        )
+
+    async def test_role_helpers_use_role_endpoints(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            return {"id": "rol_1"} if method != "DELETE" else None
+
+        client.management_request = fake_management_request
+
+        await client.get_role("rol/1")
+        await client.update_role("rol/1", {"description": "Admins"})
+        await client.delete_role("rol/1")
+        await client.list_role_users("rol/1", page=1, per_page=5)
+        await client.list_user_roles("auth0|abc", page=2, per_page=10)
+
+        self.assertEqual(
+            calls,
+            [
+                ("GET", "/roles/rol%2F1", None, None),
+                ("PATCH", "/roles/rol%2F1", {"description": "Admins"}, None),
+                ("DELETE", "/roles/rol%2F1", None, None),
+                (
+                    "GET",
+                    "/roles/rol%2F1/users",
+                    None,
+                    {"page": 1, "per_page": 5, "include_totals": "true"},
+                ),
+                (
+                    "GET",
+                    "/users/auth0%7Cabc/roles",
+                    None,
+                    {"page": 2, "per_page": 10, "include_totals": "true"},
+                ),
             ],
         )
 
@@ -282,6 +348,93 @@ class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
             ),
         )
 
+    async def test_update_api_permission_updates_existing_scope_description(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            if method == "GET":
+                return [
+                    {
+                        "id": "api|user-service",
+                        "identifier": "https://user-service",
+                        "scopes": [{"value": "read:orders", "description": "Read orders"}],
+                    }
+                ]
+            return {"scopes": json["scopes"]}
+
+        client.management_request = fake_management_request
+
+        result = await client.update_api_permission(
+            value="read:orders",
+            description="Read order resources",
+            audience="https://user-service",
+        )
+
+        self.assertEqual(result, {"scopes": [{"value": "read:orders", "description": "Read order resources"}]})
+        self.assertEqual(
+            calls[-1],
+            (
+                "PATCH",
+                "/resource-servers/api%7Cuser-service",
+                {"scopes": [{"value": "read:orders", "description": "Read order resources"}]},
+                None,
+            ),
+        )
+
+    async def test_update_api_permission_rejects_missing_scope(self):
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            return [{"id": "api|user-service", "identifier": "https://user-service", "scopes": []}]
+
+        client.management_request = fake_management_request
+
+        with self.assertRaisesRegex(Exception, "read:orders"):
+            await client.update_api_permission(
+                value="read:orders",
+                description="Read order resources",
+                audience="https://user-service",
+            )
+
+    async def test_delete_api_permission_removes_scope(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            if method == "GET":
+                return [
+                    {
+                        "id": "api|user-service",
+                        "identifier": "https://user-service",
+                        "scopes": [
+                            {"value": "read:users", "description": "Read users"},
+                            {"value": "read:orders", "description": "Read orders"},
+                        ],
+                    }
+                ]
+            return {"scopes": json["scopes"]}
+
+        client.management_request = fake_management_request
+
+        result = await client.delete_api_permission(
+            value="read:orders",
+            audience="https://user-service",
+        )
+
+        self.assertEqual(result, {"scopes": [{"value": "read:users", "description": "Read users"}]})
+        self.assertEqual(
+            calls[-1],
+            (
+                "PATCH",
+                "/resource-servers/api%7Cuser-service",
+                {"scopes": [{"value": "read:users", "description": "Read users"}]},
+                None,
+            ),
+        )
+
     async def test_assign_permissions_to_user_uses_user_permissions_endpoint(self):
         calls = []
         client = Auth0ManagementClient()
@@ -297,22 +450,33 @@ class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
             resource_server_identifier="https://orders",
         )
 
+    async def test_remove_permissions_from_user_uses_user_permissions_endpoint(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+
+        client.management_request = fake_management_request
+
+        await client.remove_permissions_from_user(
+            "auth0|abc",
+            ["read:orders"],
+            resource_server_identifier="https://orders",
+        )
+
         self.assertEqual(
             calls,
             [
                 (
-                    "POST",
+                    "DELETE",
                     "/users/auth0%7Cabc/permissions",
                     {
                         "permissions": [
                             {
                                 "permission_name": "read:orders",
                                 "resource_server_identifier": "https://orders",
-                            },
-                            {
-                                "permission_name": "update:orders",
-                                "resource_server_identifier": "https://orders",
-                            },
+                            }
                         ]
                     },
                     None,

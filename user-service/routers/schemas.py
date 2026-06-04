@@ -88,6 +88,15 @@ class UserAttributeUpdateRequest(BaseModel):
     app_metadata: dict[str, Any] | None = None
 
 
+class UserDisableRequest(BaseModel):
+    reason: str | None = None
+
+
+class UserDeleteWorkflowRequest(BaseModel):
+    reason: str | None = None
+    retention_days: int | None = Field(default=None, ge=1)
+
+
 class PasswordResetRequest(BaseModel):
     email: EmailStr
     connection_id: str | None = None
@@ -110,8 +119,17 @@ class GroupCreateRequest(BaseModel):
     description: str | None = None
 
 
+class GroupUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    description: str | None = None
+
+
 class PermissionCreateRequest(BaseModel):
     value: str = Field(min_length=1, description="Permission/scope value, such as read:orders.")
+    description: str = Field(min_length=1)
+
+
+class PermissionUpdateRequest(BaseModel):
     description: str = Field(min_length=1)
 
 
