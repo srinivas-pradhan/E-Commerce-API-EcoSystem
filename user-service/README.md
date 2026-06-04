@@ -64,6 +64,14 @@ python3 scripts/create_auth0_scopes.py
 
 The script reads Auth0 settings from exported environment variables first, then from `user-service/.env`.
 
+Grant the user-service Auth0 client the Management API scopes needed by the implemented Auth0 helper calls:
+
+```bash
+python3 scripts/configure_auth0_management_grant.py
+```
+
+The script defaults to granting the Management API scopes to `AUTH0_CLIENT_ID`. Set `AUTH0_MANAGEMENT_GRANT_CLIENT_ID` only when the service runtime uses a different Auth0 machine-to-machine client.
+
 Created user-service API scopes:
 
 ```text
