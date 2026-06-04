@@ -1,22 +1,26 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from fastapi import FastAPI
-
-app = FastAPI(title="Product Catalog Service")
-
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+from routers import admin, health, products
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str | None = None):
-    return {"item_id": item_id, "q": q}
+app = FastAPI(
+    title="Product Catalog Service",
+    description="Product discovery, promotions, cart inventory reservations, and catalog administration.",
+)
+app.include_router(health.router)
+app.include_router(products.router)
+app.include_router(admin.router)
+
 
 @app.on_event("startup")
 async def startup_event():
-    print("Startup now.")
+    print("Catalog service startup.")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    print("Shutdown now.")
+    print("Catalog service shutdown.")
