@@ -1,6 +1,6 @@
 import unittest
 
-from services.auth0.client import Auth0ManagementClient, compose_search_query
+from services.auth0.client import Auth0AuthenticationClient, Auth0ManagementClient, compose_search_query
 
 
 class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
@@ -89,6 +89,73 @@ class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_user_profile_helpers_use_management_user_endpoints(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            return {"user_id": "auth0|abc"}
+
+        client.management_request = fake_management_request
+
+        await client.get_user("auth0|abc")
+        await client.update_user("auth0|abc", {"user_metadata": {"tier": "gold"}})
+        await client.complete_registration("auth0|abc")
+
+        self.assertEqual(
+            calls,
+            [
+                ("GET", "/users/auth0%7Cabc", None, None),
+                (
+                    "PATCH",
+                    "/users/auth0%7Cabc",
+                    {"user_metadata": {"tier": "gold"}},
+                    None,
+                ),
+                (
+                    "PATCH",
+                    "/users/auth0%7Cabc",
+                    {"app_metadata": {"registration_completed": True}},
+                    None,
+                ),
+            ],
+        )
+
+    async def test_password_change_ticket_uses_management_ticket_endpoint(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            return {"ticket": "https://example.com/ticket"}
+
+        client.management_request = fake_management_request
+
+        await client.create_password_change_ticket(
+            user_id="auth0|abc",
+            connection_id="con_123",
+            result_url="https://example.com/done",
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                (
+                    "POST",
+                    "/tickets/password-change",
+                    {
+                        "client_id": "hG5aklxMlkilsmsfF6HjuROKNsivDJLU",
+                        "mark_email_as_verified": False,
+                        "user_id": "auth0|abc",
+                        "connection_id": "con_123",
+                        "result_url": "https://example.com/done",
+                    },
+                    None,
+                )
+            ],
+        )
+
     async def test_list_roles_supports_pagination_and_name_filter_parts(self):
         calls = []
         client = Auth0ManagementClient()
@@ -142,6 +209,92 @@ class Auth0ManagementClientTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result, {"deleted_authentication_method_ids": ["mfa1", "mfa2"]})
         self.assertEqual(deleted, [("auth0|abc", "mfa1"), ("auth0|abc", "mfa2")])
+
+    async def test_authentication_method_helpers_use_management_endpoints(self):
+        calls = []
+        client = Auth0ManagementClient()
+
+        async def fake_management_request(method, path, *, json=None, params=None):
+            calls.append((method, path, json, params))
+            return [{"id": "mfa1"}] if method == "GET" else None
+
+        client.management_request = fake_management_request
+
+        result = await client.list_user_authentication_methods("auth0|abc")
+        await client.delete_user_authentication_method("auth0|abc", "mfa/1")
+
+        self.assertEqual(result, [{"id": "mfa1"}])
+        self.assertEqual(
+            calls,
+            [
+                ("GET", "/users/auth0%7Cabc/authentication-methods", None, None),
+                (
+                    "DELETE",
+                    "/users/auth0%7Cabc/authentication-methods/mfa%2F1",
+                    None,
+                    None,
+                ),
+            ],
+        )
+
+
+class Auth0AuthenticationClientTest(unittest.IsolatedAsyncioTestCase):
+    async def test_mfa_helpers_use_authentication_api_endpoints(self):
+        calls = []
+        client = Auth0AuthenticationClient()
+
+        async def fake_request(method, url, *, token=None, json=None, params=None):
+            calls.append((method, url, token, json, params))
+            return {"ok": True}
+
+        client.request = fake_request
+
+        await client.start_mfa_enrollment(
+            mfa_token="mfa-token",
+            authenticator_types=["otp"],
+        )
+        await client.start_mfa_enrollment(
+            mfa_token="mfa-token",
+            authenticator_types=["oob"],
+            oob_channels=["sms"],
+            phone_number="+14155550100",
+        )
+        await client.challenge_mfa(
+            mfa_token="mfa-token",
+            challenge_type="otp",
+            authenticator_id="authenticator_1",
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                (
+                    "POST",
+                    "https://dev-lqyjuexwhe1bupvs.us.auth0.com/mfa/associate",
+                    "mfa-token",
+                    {"authenticator_types": ["otp"]},
+                    None,
+                ),
+                (
+                    "POST",
+                    "https://dev-lqyjuexwhe1bupvs.us.auth0.com/mfa/associate",
+                    "mfa-token",
+                    {
+                        "authenticator_types": ["oob"],
+                        "oob_channels": ["sms"],
+                        "phone_number": "+14155550100",
+                    },
+                    None,
+                ),
+                (
+                    "POST",
+                    "https://dev-lqyjuexwhe1bupvs.us.auth0.com/mfa/challenge",
+                    "mfa-token",
+                    {"challenge_type": "otp", "authenticator_id": "authenticator_1"},
+                    None,
+                ),
+            ],
+        )
 
 
 if __name__ == "__main__":

@@ -194,11 +194,11 @@ paths:
         - bearerAuth: ["read:own_profile"]
       responses:
         "200":
-          description: Verified Auth0 JWT claims for the current user.
+          description: Current Auth0 user profile.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClaimsResponse"
+                $ref: "#/components/schemas/Auth0User"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -224,6 +224,57 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Auth0User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /self-service/password-change:
+    post:
+      tags: [self-service]
+      summary: Request own password change
+      operationId: requestOwnPasswordChange
+      x-required-permission: change:own_password
+      security:
+        - bearerAuth: ["change:own_password"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnPasswordChangeRequest"
+      responses:
+        "200":
+          description: Auth0 password change ticket.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/Auth0Error"
+  /self-service/mfa/enrollments:
+    get:
+      tags: [self-service]
+      summary: List own MFA enrollments
+      operationId: listOwnMfaEnrollments
+      x-required-permission: read:own_mfa
+      security:
+        - bearerAuth: ["read:own_mfa"]
+      responses:
+        "200":
+          description: Current user's Auth0 authentication methods.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Auth0AuthenticationMethod"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -763,7 +814,17 @@ components:
         authenticator_type:
           type: string
           default: otp
-          description: Auth0 MFA authenticator type, such as otp or recovery-code.
+          enum: [otp, oob]
+          description: Use otp for authenticator apps or oob for SMS, voice, or Guardian push.
+        oob_channels:
+          type: array
+          items:
+            type: string
+            enum: [sms, voice, auth0]
+          description: Required for oob enrollment. Use auth0 for Guardian push.
+        phone_number:
+          type: string
+          description: Required for sms or voice enrollment. Use E.164 format.
     MfaChallengeRequest:
       type: object
       required: [mfa_token]
@@ -774,6 +835,11 @@ components:
           type: string
           default: otp
         authenticator_id:
+          type: string
+    OwnPasswordChangeRequest:
+      type: object
+      properties:
+        result_url:
           type: string
     UserAttributeUpdateRequest:
       type: object
@@ -842,6 +908,16 @@ components:
           type: string
         description:
           type: string
+    Auth0AuthenticationMethod:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        confirmed:
+          type: boolean
     Auth0ListResponse:
       type: object
       additionalProperties: true

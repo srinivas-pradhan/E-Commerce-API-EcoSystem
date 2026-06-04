@@ -291,12 +291,20 @@ class Auth0AuthenticationClient(Auth0BaseClient):
         *,
         mfa_token: str,
         authenticator_types: list[str],
+        oob_channels: list[str] | None = None,
+        phone_number: str | None = None,
     ) -> Any:
+        payload: dict[str, Any] = {"authenticator_types": authenticator_types}
+        if oob_channels:
+            payload["oob_channels"] = oob_channels
+        if phone_number:
+            payload["phone_number"] = phone_number
+
         return await self.request(
             "POST",
             f"{self.tenant_base_url}/mfa/associate",
             token=mfa_token,
-            json={"authenticator_types": authenticator_types},
+            json=payload,
         )
 
     async def challenge_mfa(

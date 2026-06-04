@@ -1,12 +1,13 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from auth import require_permissions
 from config import settings
 from routers.schemas import (
     MfaChallengeRequest,
     MfaEnrollmentRequest,
+    OwnPasswordChangeRequest,
     RegistrationCompleteRequest,
     SelfRegistrationRequest,
 )
@@ -23,9 +24,11 @@ CreateRegistration = Depends(require_permissions("create:registration"))
 CompleteRegistration = Depends(require_permissions("complete:registration"))
 ReadOwnProfile = Depends(require_permissions("read:own_profile"))
 UpdateOwnProfile = Depends(require_permissions("update:own_profile"))
+ReadOwnMfa = Depends(require_permissions("read:own_mfa"))
 EnrollOwnMfa = Depends(require_permissions("enroll:own_mfa"))
 ChallengeOwnMfa = Depends(require_permissions("challenge:own_mfa"))
 DeleteOwnMfa = Depends(require_permissions("delete:own_mfa"))
+ChangeOwnPassword = Depends(require_permissions("change:own_password"))
 
 
 @router.post("/registration", status_code=status.HTTP_201_CREATED)
@@ -59,6 +62,12 @@ async def complete_registration(
     payload: RegistrationCompleteRequest,
     claims: dict[str, Any] = CompleteRegistration,
 ):
+    if payload.user_id != claims["sub"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot complete registration for another user",
+        )
+
     try:
         return await Auth0ManagementClient().complete_registration(payload.user_id)
     except Auth0ClientError as error:
@@ -67,7 +76,10 @@ async def complete_registration(
 
 @router.get("/profile")
 async def read_profile(claims: dict[str, Any] = ReadOwnProfile):
-    return claims
+    try:
+        return await Auth0ManagementClient().get_user(claims["sub"])
+    except Auth0ClientError as error:
+        raise_http_error(error)
 
 
 @router.patch("/profile")
@@ -84,6 +96,28 @@ async def update_profile(
         raise_http_error(error)
 
 
+@router.post("/password-change")
+async def request_password_change(
+    payload: OwnPasswordChangeRequest,
+    claims: dict[str, Any] = ChangeOwnPassword,
+):
+    try:
+        return await Auth0ManagementClient().create_password_change_ticket(
+            user_id=claims["sub"],
+            result_url=payload.result_url,
+        )
+    except Auth0ClientError as error:
+        raise_http_error(error)
+
+
+@router.get("/mfa/enrollments")
+async def list_own_mfa_enrollments(claims: dict[str, Any] = ReadOwnMfa):
+    try:
+        return await Auth0ManagementClient().list_user_authentication_methods(claims["sub"])
+    except Auth0ClientError as error:
+        raise_http_error(error)
+
+
 @router.post("/mfa/enroll", status_code=status.HTTP_202_ACCEPTED)
 async def enroll_mfa(
     payload: MfaEnrollmentRequest,
@@ -93,6 +127,8 @@ async def enroll_mfa(
         return await Auth0AuthenticationClient().start_mfa_enrollment(
             mfa_token=payload.mfa_token,
             authenticator_types=[payload.authenticator_type],
+            oob_channels=payload.oob_channels,
+            phone_number=payload.phone_number,
         )
     except Auth0ClientError as error:
         raise_http_error(error)

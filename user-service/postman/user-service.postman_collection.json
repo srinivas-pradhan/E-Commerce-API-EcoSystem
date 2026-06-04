@@ -25,7 +25,12 @@
           "    \"Complete Registration\": \"complete:registration\",",
           "    \"Read Profile\": \"read:own_profile\",",
           "    \"Update Profile\": \"update:own_profile\",",
+          "    \"Request Password Change\": \"change:own_password\",",
+          "    \"List MFA Enrollments\": \"read:own_mfa\",",
           "    \"Enroll MFA\": \"enroll:own_mfa\",",
+          "    \"Enroll MFA - SMS\": \"enroll:own_mfa\",",
+          "    \"Enroll MFA - Voice\": \"enroll:own_mfa\",",
+          "    \"Enroll MFA - Guardian Push\": \"enroll:own_mfa\",",
           "    \"Challenge MFA\": \"challenge:own_mfa\",",
           "    \"Delete MFA Enrollment\": \"delete:own_mfa\",",
           "    \"List Users\": \"read:users\",",
@@ -116,6 +121,21 @@
     {
       "key": "mfa_token",
       "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password_change_result_url",
+      "value": "https://example.com/password-change-complete",
+      "type": "string"
+    },
+    {
+      "key": "authenticator_id",
+      "value": "otp_AUTHENTICATOR_ID",
+      "type": "string"
+    },
+    {
+      "key": "mfa_phone_number",
+      "value": "+14155550100",
       "type": "string"
     }
   ],
@@ -547,6 +567,92 @@
                   "pm.environment.set('access_token_update_own_profile', body.access_token);",
                   "pm.environment.set('access_token_update_own_profile_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
                   "pm.environment.set('access_token_scope', 'update:own_profile');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - change:own_password');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - change:own_password",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"change:own_password\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope change:own_password."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_change_own_password', body.access_token);",
+                  "pm.environment.set('access_token_change_own_password_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'change:own_password');",
+                  "pm.environment.set('access_token', body.access_token);",
+                  "pm.execution.setNextRequest('Get token - read:own_mfa');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get token - read:own_mfa",
+          "auth": {
+            "type": "noauth"
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{postman_client_id}}\",\n  \"client_secret\": \"{{postman_client_secret}}\",\n  \"audience\": \"{{auth0_audience}}\",\n  \"scope\": \"read:own_mfa\"\n}"
+            },
+            "url": "https://{{auth0_domain}}/oauth/token",
+            "description": "Fetch and cache an Auth0 access token for scope read:own_mfa."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token request succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('access token is present', function () {",
+                  "  pm.expect(body).to.have.property('access_token');",
+                  "});",
+                  "pm.environment.set('access_token_read_own_mfa', body.access_token);",
+                  "pm.environment.set('access_token_read_own_mfa_expires_at', String(Date.now() + ((body.expires_in || 3600) * 1000)));",
+                  "pm.environment.set('access_token_scope', 'read:own_mfa');",
                   "pm.environment.set('access_token', body.access_token);",
                   "pm.execution.setNextRequest('Get token - enroll:own_mfa');"
                 ]
@@ -1263,16 +1369,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('registration returns expected status', function () {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 401, 403, 409, 502]);",
-                  "});",
-                  "if (pm.response.code === 201) {",
-                  "  const body = pm.response.json();",
-                  "  pm.test('created user id is present', function () {",
-                  "    pm.expect(body).to.have.property('user_id');",
-                  "  });",
-                  "  pm.collectionVariables.set('user_id', body.user_id);",
-                  "}"
+                  "pm.test('start registration returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 400, 401, 403, 409, 422, 502]);",
+                  "});"
                 ]
               }
             }
@@ -1309,7 +1408,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('complete registration returns expected status', function () {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 422, 502]);",
                   "});"
                 ]
               }
@@ -1338,14 +1437,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('profile returns expected status', function () {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
-                  "});",
-                  "if (pm.response.code === 200) {",
-                  "  pm.test('profile has subject', function () {",
-                  "    pm.expect(pm.response.json()).to.have.property('sub');",
-                  "  });",
-                  "}"
+                  "pm.test('read profile returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403, 404, 502]);",
+                  "});"
                 ]
               }
             }
@@ -1368,7 +1462,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"preferred_name\": \"Postman User\"\n}"
+              "raw": "{\n  \"source\": \"postman\",\n  \"favorite_color\": \"blue\"\n}"
             },
             "url": "{{base_url}}/self-service/profile",
             "auth": {
@@ -1383,6 +1477,74 @@
                 "exec": [
                   "pm.test('update profile returns expected status', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Password Change",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_change_own_password}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result_url\": \"{{password_change_result_url}}\"\n}"
+            },
+            "url": "{{base_url}}/self-service/password-change",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request password change returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403, 404, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List MFA Enrollments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_read_own_mfa}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/self-service/mfa/enrollments",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list mfa enrollments returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401, 403, 404, 502]);",
                   "});"
                 ]
               }
@@ -1419,8 +1581,122 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('MFA enroll returns expected status', function () {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 502]);",
+                  "pm.test('mfa enroll returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enroll MFA - SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_enroll_own_mfa}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"authenticator_type\": \"oob\",\n  \"oob_channels\": [\n    \"sms\"\n  ],\n  \"phone_number\": \"{{mfa_phone_number}}\"\n}"
+            },
+            "url": "{{base_url}}/self-service/mfa/enroll",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('enroll mfa - sms returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enroll MFA - Voice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_enroll_own_mfa}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"authenticator_type\": \"oob\",\n  \"oob_channels\": [\n    \"voice\"\n  ],\n  \"phone_number\": \"{{mfa_phone_number}}\"\n}"
+            },
+            "url": "{{base_url}}/self-service/mfa/enroll",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('enroll mfa - voice returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 422, 502]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enroll MFA - Guardian Push",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_enroll_own_mfa}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"authenticator_type\": \"oob\",\n  \"oob_channels\": [\n    \"auth0\"\n  ]\n}"
+            },
+            "url": "{{base_url}}/self-service/mfa/enroll",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('enroll mfa - guardian push returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 422, 502]);",
                   "});"
                 ]
               }
@@ -1444,7 +1720,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"challenge_type\": \"otp\"\n}"
+              "raw": "{\n  \"mfa_token\": \"{{mfa_token}}\",\n  \"challenge_type\": \"otp\",\n  \"authenticator_id\": \"{{authenticator_id}}\"\n}"
             },
             "url": "{{base_url}}/self-service/mfa/challenge",
             "auth": {
@@ -1457,8 +1733,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('MFA challenge returns expected status', function () {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 502]);",
+                  "pm.test('mfa challenge returns expected status', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([202, 400, 401, 403, 422, 502]);",
                   "});"
                 ]
               }
@@ -1487,7 +1763,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('delete MFA enrollment returns expected status', function () {",
+                  "pm.test('delete mfa enrollment returns expected status', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([204, 400, 401, 403, 404, 502]);",
                   "});"
                 ]

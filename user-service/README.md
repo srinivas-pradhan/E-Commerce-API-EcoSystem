@@ -77,6 +77,8 @@ create:registration
 complete:registration
 read:own_profile
 update:own_profile
+change:own_password
+read:own_mfa
 enroll:own_mfa
 challenge:own_mfa
 delete:own_mfa
@@ -118,10 +120,100 @@ POST   /self-service/registration                    create:registration
 POST   /self-service/registration/complete           complete:registration
 GET    /self-service/profile                         read:own_profile
 PATCH  /self-service/profile                         update:own_profile
+POST   /self-service/password-change                 change:own_password
+GET    /self-service/mfa/enrollments                 read:own_mfa
 POST   /self-service/mfa/enroll                      enroll:own_mfa
 POST   /self-service/mfa/challenge                   challenge:own_mfa
 DELETE /self-service/mfa/enrollments/{enrollment_id} delete:own_mfa
 ```
+
+Self-service Auth0 upstream calls:
+
+```text
+POST   /self-service/registration                    POST   https://{AUTH0_DOMAIN}/api/v2/users
+POST   /self-service/registration/complete           PATCH  https://{AUTH0_DOMAIN}/api/v2/users/{user_id}
+GET    /self-service/profile                         GET    https://{AUTH0_DOMAIN}/api/v2/users/{user_id}
+PATCH  /self-service/profile                         PATCH  https://{AUTH0_DOMAIN}/api/v2/users/{user_id}
+POST   /self-service/password-change                 POST   https://{AUTH0_DOMAIN}/api/v2/tickets/password-change
+GET    /self-service/mfa/enrollments                 GET    https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/authentication-methods
+POST   /self-service/mfa/enroll                      POST   https://{AUTH0_DOMAIN}/mfa/associate
+POST   /self-service/mfa/challenge                   POST   https://{AUTH0_DOMAIN}/mfa/challenge
+DELETE /self-service/mfa/enrollments/{enrollment_id} DELETE https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/authentication-methods/{enrollment_id}
+```
+
+### Self-Service MFA Usage
+
+The self-service MFA endpoints use two different Auth0 APIs:
+
+```text
+POST /self-service/mfa/enroll      -> POST https://{AUTH0_DOMAIN}/mfa/associate
+POST /self-service/mfa/challenge   -> POST https://{AUTH0_DOMAIN}/mfa/challenge
+GET  /self-service/mfa/enrollments -> GET  https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/authentication-methods
+```
+
+Every user-service MFA request still requires a user-service bearer token with the listed user-service scope. The `mfa_token` in the request body is the Auth0 MFA API token for the current MFA flow.
+
+Supported MFA enrollment options:
+
+```text
+Authenticator app / TOTP  authenticator_type=otp
+SMS code                  authenticator_type=oob, oob_channels=["sms"], phone_number=E.164 phone number
+Voice code                authenticator_type=oob, oob_channels=["voice"], phone_number=E.164 phone number
+Guardian push             authenticator_type=oob, oob_channels=["auth0"]
+```
+
+Authenticator app enrollment:
+
+```json
+{
+  "mfa_token": "AUTH0_MFA_TOKEN",
+  "authenticator_type": "otp"
+}
+```
+
+SMS enrollment:
+
+```json
+{
+  "mfa_token": "AUTH0_MFA_TOKEN",
+  "authenticator_type": "oob",
+  "oob_channels": ["sms"],
+  "phone_number": "+14155550100"
+}
+```
+
+Voice enrollment:
+
+```json
+{
+  "mfa_token": "AUTH0_MFA_TOKEN",
+  "authenticator_type": "oob",
+  "oob_channels": ["voice"],
+  "phone_number": "+14155550100"
+}
+```
+
+Guardian push enrollment:
+
+```json
+{
+  "mfa_token": "AUTH0_MFA_TOKEN",
+  "authenticator_type": "oob",
+  "oob_channels": ["auth0"]
+}
+```
+
+Challenge an enrolled authenticator:
+
+```json
+{
+  "mfa_token": "AUTH0_MFA_TOKEN",
+  "challenge_type": "otp",
+  "authenticator_id": "totp|AUTHENTICATOR_ID"
+}
+```
+
+For SMS, voice, Guardian push, and email authenticators, use `challenge_type=oob` and pass the `authenticator_id` returned by Auth0. Email authenticators can be challenged when Auth0 lists them, but user-service does not enroll email MFA because Auth0 email enrollment is tenant/user-email driven rather than a phone or device enrollment payload.
 
 Admin:
 
@@ -278,6 +370,8 @@ create:registration
 complete:registration
 read:own_profile
 update:own_profile
+change:own_password
+read:own_mfa
 enroll:own_mfa
 challenge:own_mfa
 delete:own_mfa

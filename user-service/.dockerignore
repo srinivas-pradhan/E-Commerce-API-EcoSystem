@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.venv
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+postman/*environment*.json
+postman/*credentials*.json
+postman/*.local.json

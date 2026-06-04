@@ -41,6 +41,8 @@ USER_SERVICE_SCOPES = {
     "complete:registration": "Complete self-service user registration",
     "read:own_profile": "Read own user profile",
     "update:own_profile": "Update own user profile",
+    "change:own_password": "Request own password change ticket",
+    "read:own_mfa": "Read own MFA enrollments",
     "enroll:own_mfa": "Enroll own MFA factors",
     "challenge:own_mfa": "Challenge own MFA factors",
     "delete:own_mfa": "Delete own MFA enrollments",

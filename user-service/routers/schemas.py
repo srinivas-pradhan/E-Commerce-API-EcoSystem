@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class BlueprintResponse(BaseModel):
@@ -26,16 +26,42 @@ class RegistrationCompleteRequest(BaseModel):
 
 class MfaEnrollmentRequest(BaseModel):
     mfa_token: str
-    authenticator_type: str = Field(
+    authenticator_type: Literal["otp", "oob"] = Field(
         default="otp",
-        description="Auth0 MFA authenticator type, such as otp or recovery-code.",
+        description="Auth0 MFA authenticator type. Use otp for authenticator apps or oob for SMS, voice, or push.",
     )
+    oob_channels: list[Literal["sms", "voice", "auth0"]] | None = Field(
+        default=None,
+        description="Required for oob enrollment. Use sms, voice, or auth0 for Guardian push.",
+    )
+    phone_number: str | None = Field(
+        default=None,
+        description="Required for oob sms or voice enrollment. Use E.164 format.",
+    )
+
+    @model_validator(mode="after")
+    def validate_oob_enrollment(self):
+        if self.authenticator_type != "oob":
+            return self
+
+        if not self.oob_channels:
+            raise ValueError("oob_channels is required when authenticator_type is oob")
+
+        phone_channels = {"sms", "voice"}
+        if phone_channels.intersection(self.oob_channels) and not self.phone_number:
+            raise ValueError("phone_number is required for sms or voice MFA enrollment")
+
+        return self
 
 
 class MfaChallengeRequest(BaseModel):
     mfa_token: str
     challenge_type: str = "otp"
     authenticator_id: str | None = None
+
+
+class OwnPasswordChangeRequest(BaseModel):
+    result_url: str | None = None
 
 
 class UserListQuery(BaseModel):
